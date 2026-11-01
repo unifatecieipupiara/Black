@@ -1,7 +1,7 @@
 // =====================================================================
 //  DADOS DA CAMPANHA
-//  Edite aqui: nome do polo, links de matrícula, cupons, cursos, valores
-//  e as mensagens prontas. Não é preciso mexer em nenhum outro arquivo.
+//  Edite aqui: nome do polo, links de matrícula, cupons (uso interno),
+//  cursos, valores e as mensagens prontas. Não é preciso mexer em nenhum outro arquivo.
 // =====================================================================
 
 export const POLO = {
@@ -16,8 +16,9 @@ export const DADOS_DE_EXEMPLO = true;
 
 // ---------------------------------------------------------------------
 //  TIPOS DE INGRESSO
-//  Cada tipo vira um card no topo da página (link + cupom) e tem a sua
-//  própria mensagem pronta.
+//  Cada tipo vira um card no topo da página e tem a sua própria mensagem.
+//  "link" e "cupom" são de USO INTERNO: aparecem só no card do topo e
+//  nunca entram na mensagem enviada ao lead.
 //
 //  Marcadores que podem ser usados na mensagem:
 //    {nome}      primeiro nome do lead (some sozinho se não houver nome)
@@ -28,8 +29,6 @@ export const DADOS_DE_EXEMPLO = true;
 //    {valor}     valor promocional
 //    {valorDe}   valor original
 //    {detalhes}  lista de detalhes do curso, um por linha
-//    {link}      link de matrícula do tipo de ingresso
-//    {cupom}     cupom do tipo de ingresso
 //    {polo}      nome do polo
 //    {campanha}  nome da campanha
 //  Linhas cujos marcadores ficarem vazios são removidas automaticamente.
@@ -52,12 +51,7 @@ Aqui é da *{polo}*. Estamos na *{campanha}* e tenho uma condição especial par
 💰 {oferta}
 {detalhes}
 
-👉 Garanta sua vaga pelo link de matrícula:
-{link}
-
-🎟️ Na hora da matrícula, use o cupom: *{cupom}*
-
-Qualquer dúvida, é só me chamar por aqui!`,
+Quer garantir essa condição? É só me responder por aqui que eu te ajudo com a matrícula! 😉`,
   },
   {
     id: 'segunda',
@@ -75,12 +69,7 @@ Aqui é da *{polo}*. Já tem um diploma de graduação? Na *{campanha}* a sua *s
 💰 {oferta}
 {detalhes}
 
-👉 Garanta sua vaga pelo link de matrícula:
-{link}
-
-🎟️ Na hora da matrícula, use o cupom: *{cupom}*
-
-Qualquer dúvida, é só me chamar por aqui!`,
+Quer garantir essa condição? É só me responder por aqui que eu te ajudo com a matrícula! 😉`,
   },
   {
     id: 'pos',
@@ -97,12 +86,7 @@ Aqui é da *{polo}*. Na *{campanha}* a sua pós-graduação está com condição
 💰 {oferta}
 {detalhes}
 
-👉 Faça sua matrícula pelo link:
-{link}
-
-🎟️ Na hora da matrícula, use o cupom: *{cupom}*
-
-Qualquer dúvida, é só me chamar por aqui!`,
+Quer garantir essa condição? É só me responder por aqui que eu te ajudo com a matrícula! 😉`,
   },
   {
     id: 'transferencia',
@@ -118,12 +102,7 @@ Aqui é da *{polo}*. Quer transferir seu curso para a UniFatecie? Na *{campanha}
 💰 {oferta}
 {detalhes}
 
-👉 Faça sua transferência pelo link:
-{link}
-
-🎟️ Na hora da matrícula, use o cupom: *{cupom}*
-
-Qualquer dúvida, é só me chamar por aqui!`,
+Quer garantir essa condição? É só me responder por aqui que eu te ajudo com a matrícula! 😉`,
   },
 ];
 

@@ -347,9 +347,8 @@ p { margin: 0; }
   color: var(--cor-st);
   cursor: pointer;
 }
-.lead-info { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.88rem; color: #3b414a; }
-.lead-info a { color: #0a7a3a; text-decoration: none; font-weight: 600; }
-.lead-info a:hover { text-decoration: underline; }
+.lead-cabeca h4 a { color: #0a7a3a; text-decoration: none; }
+.lead-cabeca h4 a:hover { text-decoration: underline; }
 .lead-obs { font-size: 0.86rem; color: #3b414a; background: #f7f8fa; border-radius: 8px; padding: 6px 10px; white-space: pre-wrap; }
 .lead-meta { font-size: 0.78rem; color: var(--suave); }
 .lead-acoes { display: flex; gap: 6px; flex-wrap: wrap; }

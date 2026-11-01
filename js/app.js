@@ -110,7 +110,8 @@ const capitalizar = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
 function montarMensagem({ cursoId, ingresso, nome }) {
   const curso = cursoPorId[cursoId];
-  const tipo = tipoPorId[ingresso] || tipoPorId[curso?.tipo];
+  if (!curso) return '';
+  const tipo = tipoPorId[ingresso] || tipoPorId[curso.tipo];
   const modelo = curso?.mensagem || tipo?.mensagem || '';
   const valores = {
     curso: curso?.nome || '',
@@ -120,8 +121,6 @@ function montarMensagem({ cursoId, ingresso, nome }) {
     valorDe: curso?.valorDe || '',
     oferta: curso?.valor ? (curso.valorDe ? `de ~${curso.valorDe}~ por *${curso.valor}*` : `*${curso.valor}*`) : '',
     detalhes: (curso?.detalhes || []).map((d) => `✅ ${d}`).join('\n'),
-    link: tipo?.link || '',
-    cupom: tipo?.cupom || '',
     polo: POLO.nome,
     campanha: POLO.campanha,
   };
@@ -195,8 +194,7 @@ function renderMatriculas() {
         <div class="card-acoes">
           ${
             temLink
-              ? `<a class="btn btn-primario" href="${esc(t.link)}" target="_blank" rel="noopener">Abrir matrícula ↗</a>
-                 <button type="button" class="btn" data-acao="copiar-link" data-tipo="${esc(t.id)}">Copiar link</button>`
+              ? `<a class="btn btn-primario" href="${esc(t.link)}" target="_blank" rel="noopener">Acessar link ↗</a>`
               : '<span class="sem-link">Link ainda não cadastrado</span>'
           }
         </div>
@@ -259,10 +257,6 @@ function renderCursos() {
 }
 
 // ---------------------------------------------------------------- leads
-
-function nomeCursoDoLead(l) {
-  return cursoPorId[l.cursoId]?.nome || l.cursoNome || '';
-}
 
 function renderContador() {
   const el = $('#contLeads');
@@ -336,8 +330,7 @@ function renderListaLeads() {
     .filter((l) => estado.filtroStatus === 'todos' || l.status === estado.filtroStatus)
     .filter((l) => {
       if (!q) return true;
-      const texto = normalizar(`${l.nome} ${l.telefone} ${nomeCursoDoLead(l)} ${l.obs || ''}`);
-      return texto.includes(q) || (qDig.length >= 3 && digitos(l.telefone).includes(qDig));
+      return normalizar(`${l.telefone} ${l.obs || ''}`).includes(q) || (qDig.length >= 3 && digitos(l.telefone).includes(qDig));
     })
     .sort((a, b) => (b.atualizadoEm || 0) - (a.atualizadoEm || 0));
 
@@ -350,7 +343,7 @@ function renderListaLeads() {
 
   $('#listaLeads').innerHTML = lista
     .map((l) => {
-      const linhaCurso = [nomeCursoDoLead(l), tipoPorId[l.ingresso]?.nome].filter(Boolean).join(' · ');
+      const rotulo = l.telefone || 'Sem número';
       const atualizado = l.atualizadoEm
         ? `Atualizado ${tempoRelativo(l.atualizadoEm)}${l.atualizadoPor ? ` por ${esc(primeiroNome(l.atualizadoPor))}` : ''}`
         : '';
@@ -358,22 +351,22 @@ function renderListaLeads() {
       <article class="lead st-${esc(l.status)}">
         <div class="lead-principal">
           <div class="lead-cabeca">
-            <h4>${esc(l.nome)}</h4>
-            <select class="status-select st-${esc(l.status)}" data-acao="mudar-status" data-id="${esc(l.id)}" aria-label="Status de ${esc(l.nome)}">
+            <h4>${
+              l.telefone
+                ? `<a href="https://wa.me/${numeroWhats(l.telefone)}" target="_blank" rel="noopener" title="Abrir conversa no WhatsApp">📱 ${esc(l.telefone)}</a>`
+                : 'Sem número'
+            }</h4>
+            <select class="status-select st-${esc(l.status)}" data-acao="mudar-status" data-id="${esc(l.id)}" aria-label="Status do lead ${esc(rotulo)}">
               ${STATUS.map((s) => `<option value="${s.id}" ${s.id === l.status ? 'selected' : ''}>${s.nome}</option>`).join('')}
             </select>
           </div>
-          <p class="lead-info">
-            ${l.telefone ? `<a href="https://wa.me/${numeroWhats(l.telefone)}" target="_blank" rel="noopener">📱 ${esc(l.telefone)}</a>` : ''}
-            ${linhaCurso ? `<span>🎓 ${esc(linhaCurso)}</span>` : ''}
-          </p>
           ${l.obs ? `<p class="lead-obs">${esc(l.obs)}</p>` : ''}
           <p class="lead-meta" title="Criado em ${esc(dataHora(l.criadoEm))}${l.criadoPor ? ` por ${esc(l.criadoPor)}` : ''}">${atualizado}</p>
         </div>
         <div class="lead-acoes">
           <button type="button" class="btn btn-mini" data-acao="msg-lead" data-id="${esc(l.id)}">💬 Mensagem</button>
           <button type="button" class="btn btn-mini" data-acao="editar-lead" data-id="${esc(l.id)}">✏️ Editar</button>
-          <button type="button" class="btn btn-mini btn-perigo" data-acao="excluir-lead" data-id="${esc(l.id)}" aria-label="Excluir ${esc(l.nome)}">🗑️</button>
+          <button type="button" class="btn btn-mini btn-perigo" data-acao="excluir-lead" data-id="${esc(l.id)}" aria-label="Excluir lead ${esc(rotulo)}">🗑️</button>
         </div>
       </article>`;
     })
@@ -404,39 +397,33 @@ function abrirFormLead(lead) {
   estado.editandoId = lead?.id || null;
   const f = $('#formLead');
   $('#dlgLeadTitulo').textContent = lead ? 'Editar lead' : 'Novo lead';
-  f.nome.value = lead?.nome || '';
   f.telefone.value = lead?.telefone || '';
-  const cursoId = lead?.cursoId && cursoPorId[lead.cursoId] ? lead.cursoId : '';
-  f.cursoId.innerHTML = opcoesCursos(cursoId, lead?.cursoNome && !cursoId ? `${lead.cursoNome} (fora da lista)` : 'Ainda não definido');
-  f.ingresso.innerHTML = opcoesTipos(lead?.ingresso || '', '—');
   f.status.innerHTML = STATUS.map(
     (s) => `<option value="${s.id}" ${s.id === (lead?.status || 'andamento') ? 'selected' : ''}>${s.nome}</option>`,
   ).join('');
   f.obs.value = lead?.obs || '';
   $('#dlgLead').showModal();
-  f.nome.focus();
+  f.telefone.focus();
 }
 
 async function salvarLead(e) {
   e.preventDefault();
   const f = $('#formLead');
-  const nome = f.nome.value.trim();
-  if (!nome) {
-    f.nome.focus();
+  const telefone = formatarTelefone(f.telefone.value);
+  if (digitos(telefone).length < 10) {
+    toast('Informe o WhatsApp com DDD', 'erro');
+    f.telefone.focus();
     return;
   }
-  const cursoId = f.cursoId.value;
-  const anterior = estado.leads.find((l) => l.id === estado.editandoId);
-  const dados = {
-    nome,
-    telefone: formatarTelefone(f.telefone.value),
-    cursoId,
-    cursoNome: cursoPorId[cursoId]?.nome || (cursoId ? '' : anterior?.cursoNome || ''),
-    ingresso: f.ingresso.value,
-    status: f.status.value,
-    obs: f.obs.value.trim(),
-  };
   const id = estado.editandoId;
+  const repetido = estado.leads.find((l) => l.id !== id && numeroWhats(l.telefone) === numeroWhats(telefone));
+  if (
+    repetido &&
+    !confirm(`Este WhatsApp já está cadastrado (status: ${statusPorId[repetido.status]?.nome || repetido.status}). Salvar mesmo assim?`)
+  ) {
+    return;
+  }
+  const dados = { telefone, status: f.status.value, obs: f.obs.value.trim() };
   $('#dlgLead').close();
   try {
     if (id) await estado.store.atualizar(id, dados);
@@ -484,14 +471,11 @@ function exportarCsv() {
     const s = String(v ?? '');
     return `"${(/^[=+\-@\t\r]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
   };
-  const cabecalho = ['Nome', 'WhatsApp', 'Curso', 'Ingresso', 'Status', 'Observação', 'Criado em', 'Criado por', 'Atualizado em', 'Atualizado por'];
+  const cabecalho = ['WhatsApp', 'Status', 'Observação', 'Criado em', 'Criado por', 'Atualizado em', 'Atualizado por'];
   const linhas = [...estado.leads]
     .sort((a, b) => (a.criadoEm || 0) - (b.criadoEm || 0))
     .map((l) => [
-      l.nome,
       l.telefone,
-      nomeCursoDoLead(l),
-      tipoPorId[l.ingresso]?.nome || '',
       statusPorId[l.status]?.nome || l.status,
       l.obs,
       dataHora(l.criadoEm),
@@ -531,8 +515,6 @@ async function executarAcao(acao, el) {
   switch (acao) {
     case 'copiar-cupom':
       return copiar(tipoPorId[el.dataset.tipo].cupom, 'Cupom copiado!');
-    case 'copiar-link':
-      return copiar(tipoPorId[el.dataset.tipo].link, 'Link copiado!');
     case 'filtro-tipo':
       estado.filtroTipo = el.dataset.tipo;
       return renderCursos();
@@ -574,7 +556,7 @@ async function executarAcao(acao, el) {
     }
     case 'msg-lead': {
       const lead = estado.leads.find((l) => l.id === el.dataset.id);
-      if (lead) abrirMensagem({ cursoId: lead.cursoId, ingresso: lead.ingresso, nome: lead.nome, telefone: lead.telefone });
+      if (lead) abrirMensagem({ telefone: lead.telefone });
       return;
     }
     case 'exportar':
@@ -610,10 +592,6 @@ $('#buscaLead').addEventListener('input', (e) => {
 });
 
 $('#formLead').addEventListener('submit', salvarLead);
-$('#formLead').cursoId.addEventListener('change', (e) => {
-  const tipo = cursoPorId[e.target.value]?.tipo;
-  if (tipo) $('#formLead').ingresso.value = tipo;
-});
 
 $('#msgCurso').addEventListener('change', (e) => {
   const tipo = cursoPorId[e.target.value]?.tipo;

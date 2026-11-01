@@ -56,7 +56,7 @@ Quer garantir essa condição? É só me responder por aqui que eu te ajudo com 
   {
     id: 'segunda',
     nome: '2ª Graduação',
-    link: '', // EXEMPLO
+    link: 'https://segundagraduacao.fatecie.edu.br/inscription?origem=polo&polo=BwOyo2BF1ALSH3PNae9bLQ==',
     cupom: 'CUPOM-2GRAD', // EXEMPLO
     obs: 'Para quem já tem diploma de graduação.',
     mensagem: `Olá, {nome}! Tudo bem? 😊
@@ -74,7 +74,7 @@ Quer garantir essa condição? É só me responder por aqui que eu te ajudo com 
   {
     id: 'pos',
     nome: 'Pós-Graduação',
-    link: '', // EXEMPLO
+    link: 'https://matriculapos.fatecie.edu.br/inscription?origem=polo',
     cupom: 'CUPOM-POS', // EXEMPLO
     obs: 'Use o cupom no momento da matrícula.',
     mensagem: `Olá, {nome}! Tudo bem? 😊
@@ -91,7 +91,7 @@ Quer garantir essa condição? É só me responder por aqui que eu te ajudo com 
   {
     id: 'transferencia',
     nome: 'Transferência',
-    link: '', // EXEMPLO
+    link: 'https://matriculasunifatecie.com.br/matricula-transferencia-externa-polos/',
     cupom: 'CUPOM-TRANSF', // EXEMPLO
     obs: 'Para quem vem de outra instituição.',
     mensagem: `Olá, {nome}! Tudo bem? 😊

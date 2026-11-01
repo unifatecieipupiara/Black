@@ -61,6 +61,7 @@ const cursoPorId = Object.fromEntries(cursos.map((c) => [c.id, c]));
 const estado = {
   aba: 'cursos',
   filtroTipo: 'todos',
+  filtroArea: 'todas',
   buscaCurso: '',
   store: null,
   erroStore: null,
@@ -145,15 +146,22 @@ function montarMensagem({ cursoId, ingresso }) {
   const tipo = tipoPorId[ingresso] || tipoPorId[curso.tipo];
   const modelo = curso.mensagem || tipo?.mensagem || '';
   const { normal, black } = precoCurso(curso);
-  const valor = black ?? normal;
+  const parcelado = typeof curso.valorParcela === 'number';
+  const valor = parcelado ? curso.valorParcela : (black ?? normal);
+  let oferta = '';
+  if (parcelado) oferta = `*${curso.parcelas}× de ${reais(curso.valorParcela)}*`;
+  else if (valor !== null) oferta = black !== null ? `~${reais(normal)}~ por *${reais(black)}*` : `*${reais(normal)}*`;
   const valores = {
     curso: curso.nome || '',
     grau: curso.grau || '',
     duracao: curso.duracao || '',
+    cargaHoraria: curso.cargaHoraria || '',
+    area: curso.area || '',
+    lancamento: curso.lancamento || '',
     valor: valor !== null ? reais(valor) : '',
-    valorDe: black !== null ? reais(normal) : '',
-    oferta: valor === null ? '' : black !== null ? `~${reais(normal)}~ por *${reais(black)}*` : `*${reais(normal)}*`,
-    matricula: tipo?.matricula || '',
+    valorDe: !parcelado && black !== null ? reais(normal) : '',
+    oferta,
+    matricula: curso.matricula || tipo?.matricula || '',
     primeiraMensalidade: tipo?.primeiraMensalidade || '',
     detalhes: detalhesCurso(curso).join('\n'),
     polo: POLO.nome,
@@ -263,9 +271,35 @@ function renderFiltrosTipo() {
     .join('');
 }
 
+function renderFiltrosArea() {
+  const el = $('#filtrosArea');
+  const areas = [...new Set(cursos.filter((c) => c.tipo === estado.filtroTipo && c.area).map((c) => c.area))].sort((a, b) =>
+    a.localeCompare(b, 'pt-BR'),
+  );
+  el.hidden = areas.length < 2;
+  if (el.hidden) {
+    estado.filtroArea = 'todas';
+    el.innerHTML = '';
+    return;
+  }
+  if (estado.filtroArea !== 'todas' && !areas.includes(estado.filtroArea)) estado.filtroArea = 'todas';
+  el.innerHTML = ['todas', ...areas]
+    .map(
+      (a) =>
+        `<button type="button" class="chip chip-area ${estado.filtroArea === a ? 'ativo' : ''}" data-acao="filtro-area" data-area="${esc(a)}" aria-pressed="${estado.filtroArea === a}">${esc(a === 'todas' ? 'Todas as áreas' : a)}</button>`,
+    )
+    .join('');
+}
+
 function cardCurso(c) {
   const tipo = tipoPorId[c.tipo];
-  const sub = [c.grau, c.duracao].filter(Boolean).join(' · ');
+  const sub = [c.grau, c.duracao, c.cargaHoraria].filter(Boolean).join(' · ');
+  const parcelado = typeof c.valorParcela === 'number';
+  const marcadores = [
+    c.destaque ? ['destaque', '★ Destaque'] : null,
+    c.lancamento ? ['lancamento', `Lançamento ${c.lancamento}`] : null,
+    c.emBreve ? ['embreve', 'Em breve'] : null,
+  ].filter(Boolean);
   const { normal, black } = precoCurso(c);
   const grupo = grupoCurso(c);
   const flags = [
@@ -280,14 +314,23 @@ function cardCurso(c) {
       <div class="etiquetas">
         <span class="etiqueta tipo-${esc(c.tipo)}">${esc(tipo?.nome || c.tipo)}</span>
         ${grupo ? `<span class="etiqueta etiqueta-grupo">${esc(grupo.nome)}</span>` : ''}
+        ${c.area ? `<span class="etiqueta etiqueta-grupo">${esc(c.area)}</span>` : ''}
       </div>
       <h4>${esc(c.nome)}</h4>
       ${sub ? `<p class="curso-sub">${esc(sub)}</p>` : ''}
+      ${
+        parcelado
+          ? `<p class="preco"><span class="preco-por"><strong>${c.parcelas}× ${reais(c.valorParcela)}</strong></span>${
+              c.matricula || tipo?.matricula ? `<span class="preco-nota">+ matrícula ${esc(c.matricula || tipo.matricula)}</span>` : ''
+            }</p>`
+          : ''
+      }
       ${
         normal !== null
           ? `<p class="preco">${black !== null ? `<span class="preco-de">de <s>${reais(normal)}</s></span>` : ''}<span class="preco-por">${black !== null ? 'por ' : ''}<strong>${reais(black ?? normal)}</strong><span class="preco-mes">/mês</span></span>${black === null ? '<span class="preco-nota">valor normal</span>' : ''}</p>`
           : ''
       }
+      ${marcadores.length ? `<ul class="flags">${marcadores.map(([cls, txt]) => `<li class="m-${cls}">${esc(txt)}</li>`).join('')}</ul>` : ''}
       ${flags.length ? `<ul class="flags">${flags.map(([nome, v]) => `<li class="${v ? 'sim' : 'nao'}">${v ? '✓' : '✗'} ${esc(nome)}</li>`).join('')}</ul>` : ''}
       <div class="card-acoes">
         <button type="button" class="btn btn-primario" data-acao="copiar-msg" data-curso="${esc(c.id)}">📋 Copiar mensagem</button>
@@ -298,11 +341,13 @@ function cardCurso(c) {
 
 function renderCursos() {
   renderFiltrosTipo();
+  renderFiltrosArea();
   const q = normalizar(estado.buscaCurso.trim());
   const visiveis = cursos.filter(
     (c) =>
       (estado.filtroTipo === 'todos' || c.tipo === estado.filtroTipo) &&
-      (!q || normalizar(`${c.nome} ${c.grau || ''} ${tipoPorId[c.tipo]?.nome || ''}`).includes(q)),
+      (estado.filtroArea === 'todas' || c.area === estado.filtroArea) &&
+      (!q || normalizar(`${c.nome} ${c.grau || ''} ${c.area || ''} ${tipoPorId[c.tipo]?.nome || ''}`).includes(q)),
   );
   if (!visiveis.length) {
     $('#listaCursos').innerHTML = '<p class="vazio">Nenhum curso encontrado.</p>';
@@ -587,6 +632,10 @@ async function executarAcao(acao, el) {
       return copiar(tipoPorId[el.dataset.tipo].cupom, 'Cupom copiado!');
     case 'filtro-tipo':
       estado.filtroTipo = el.dataset.tipo;
+      estado.filtroArea = 'todas';
+      return renderCursos();
+    case 'filtro-area':
+      estado.filtroArea = el.dataset.area;
       return renderCursos();
     case 'copiar-msg':
       return copiar(montarMensagem({ cursoId: el.dataset.curso }), 'Mensagem copiada!');

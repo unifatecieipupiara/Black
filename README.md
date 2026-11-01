@@ -60,6 +60,9 @@ Tudo fica em [`js/dados.js`](js/dados.js). Pelo próprio GitHub: abra o arquivo 
   última coluna da linha do curso.
 - **Cursos:** uma linha por curso (nome, modalidade, duração, mensalidade normal, estágio, TCC,
   prova no polo, aula no MegaPolo). Os de Graduação e 2ª Graduação vieram do Notion.
+- **Pós-Graduação:** uma linha por curso (área, nome, meses, carga horária e, se for o caso,
+  lançamento / em breve / destaque / parcela diferente). Condição padrão em `POS_CONDICAO`
+  (12× R$ 29,90) e matrícula no tipo "Pós-Graduação".
 
 Enquanto faltar algum link, cupom, desconto ou lista de cursos, o topo da página mostra um aviso
 amarelo dizendo o que ainda falta. Ele some sozinho quando tudo estiver preenchido.

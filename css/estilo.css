@@ -283,6 +283,11 @@ p { margin: 0; }
 .flags li.sim { background: #e7f6ec; color: #166534; }
 .flags li.nao { background: #f1f2f4; color: #6b7280; }
 .aviso ul { margin: 4px 0 0; padding-left: 20px; }
+.flags li.m-destaque { background: #fff4d6; color: #7a4b00; }
+.flags li.m-lancamento { background: #e8eefc; color: #1e3a8a; }
+.flags li.m-embreve { background: #f3e8ff; color: #6b21a8; }
+.chips-area { margin: -4px 0 14px; }
+.chip-area { font-size: 0.8rem; padding: 4px 10px; }
 .card-curso .card-acoes { padding-top: 8px; }
 
 /* ---------- leads ---------- */

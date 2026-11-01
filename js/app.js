@@ -1,4 +1,4 @@
-import { POLO, DADOS_DE_EXEMPLO, TIPOS, CURSOS } from './dados.js';
+import { POLO, DESCONTO_BLACK, TIPOS, CURSOS } from './dados.js';
 import { FIREBASE_CONFIG } from './config.js';
 import { criarArmazenamento } from './armazenamento.js';
 
@@ -23,7 +23,34 @@ const normalizar = (s) =>
     .toLowerCase();
 const slug = (s) => normalizar(s).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-const cursos = CURSOS.map((c) => ({ ...c, id: c.id || slug(`${c.tipo}-${c.nome}`) }));
+const cursos = CURSOS.map((c) => ({ ...c, id: c.id || slug(`${c.tipo}-${c.nome}-${c.grau || ''}`) })).sort((a, b) =>
+  a.nome.localeCompare(b.nome, 'pt-BR'),
+);
+
+// ---------------------------------------------------------------- valores
+
+const reais = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).replace(/\s/g, ' ');
+
+function precoCurso(c) {
+  const normal = typeof c.valorNormal === 'number' ? c.valorNormal : null;
+  if (normal === null) return { normal: null, black: null };
+  const desconto = DESCONTO_BLACK[c.tipo];
+  let black = typeof c.valorBlack === 'number' ? c.valorBlack : null;
+  if (black === null && typeof desconto === 'number' && desconto > 0) black = Math.round(normal * (100 - desconto)) / 100;
+  return { normal, black: black !== null && black < normal ? black : null };
+}
+
+const sn = (v) => (v ? 'sim' : 'não');
+
+function detalhesCurso(c) {
+  const linhas = [];
+  if (typeof c.tcc === 'boolean' || typeof c.estagio === 'boolean') linhas.push(`📝 TCC: ${sn(c.tcc)} · Estágio: ${sn(c.estagio)}`);
+  if (c.provaPolo) linhas.push('🏫 Provas no polo');
+  if (c.megaPolo) linhas.push('🔬 Aulas presenciais no MegaPolo');
+  return linhas;
+}
+
+const rotuloCurso = (c) => (c.grau ? `${c.nome} – ${c.grau}` : c.nome);
 const cursoPorId = Object.fromEntries(cursos.map((c) => [c.id, c]));
 
 const estado = {
@@ -112,15 +139,17 @@ function montarMensagem({ cursoId, ingresso, nome }) {
   const curso = cursoPorId[cursoId];
   if (!curso) return '';
   const tipo = tipoPorId[ingresso] || tipoPorId[curso.tipo];
-  const modelo = curso?.mensagem || tipo?.mensagem || '';
+  const modelo = curso.mensagem || tipo?.mensagem || '';
+  const { normal, black } = precoCurso(curso);
+  const valor = black ?? normal;
   const valores = {
-    curso: curso?.nome || '',
-    grau: curso?.grau || '',
-    duracao: curso?.duracao || '',
-    valor: curso?.valor || '',
-    valorDe: curso?.valorDe || '',
-    oferta: curso?.valor ? (curso.valorDe ? `de ~${curso.valorDe}~ por *${curso.valor}*` : `*${curso.valor}*`) : '',
-    detalhes: (curso?.detalhes || []).map((d) => `✅ ${d}`).join('\n'),
+    curso: curso.nome || '',
+    grau: curso.grau || '',
+    duracao: curso.duracao || '',
+    valor: valor !== null ? reais(valor) : '',
+    valorDe: black !== null ? reais(normal) : '',
+    oferta: valor === null ? '' : black !== null ? `de ~${reais(normal)}~ por *${reais(black)}*` : `*${reais(normal)}*`,
+    detalhes: detalhesCurso(curso).join('\n'),
     polo: POLO.nome,
     campanha: POLO.campanha,
   };
@@ -149,9 +178,18 @@ function renderTopo() {
 
 function renderAvisos() {
   const avisos = [];
-  if (DADOS_DE_EXEMPLO) {
+  const pendencias = [];
+  const semLink = TIPOS.filter((t) => !t.link).map((t) => t.nome);
+  const semCupom = TIPOS.filter((t) => !t.cupom).map((t) => t.nome);
+  const semCursos = TIPOS.filter((t) => t.id in DESCONTO_BLACK && !cursos.some((c) => c.tipo === t.id)).map((t) => t.nome);
+  const semDesconto = cursos.some((c) => precoCurso(c).normal !== null && precoCurso(c).black === null);
+  if (semLink.length) pendencias.push(`link de matrícula (${semLink.join(', ')})`);
+  if (semCupom.length) pendencias.push(`cupom (${semCupom.join(', ')})`);
+  if (semDesconto) pendencias.push('valores da Black Friday — por enquanto aparecem os valores normais, sem desconto');
+  if (semCursos.length) pendencias.push(`cursos de ${semCursos.join(', ')}`);
+  if (pendencias.length) {
     avisos.push(
-      '<div class="aviso aviso-alerta">⚠️ <strong>Cursos, valores, links e cupons ainda são de exemplo.</strong> Não envie essas mensagens para leads até os dados reais serem cadastrados.</div>',
+      `<div class="aviso aviso-alerta">⚠️ <strong>Ainda falta cadastrar:</strong><ul>${pendencias.map((p) => `<li>${esc(p)}</li>`).join('')}</ul></div>`,
     );
   }
   if (estado.store?.modo === 'demo') {
@@ -218,17 +256,24 @@ function renderFiltrosTipo() {
 function cardCurso(c) {
   const tipo = tipoPorId[c.tipo];
   const sub = [c.grau, c.duracao].filter(Boolean).join(' · ');
+  const { normal, black } = precoCurso(c);
+  const flags = [
+    ['TCC', c.tcc],
+    ['Estágio', c.estagio],
+    ['Prova no polo', c.provaPolo],
+    ['Aula no MegaPolo', c.megaPolo],
+  ].filter(([, v]) => typeof v === 'boolean');
   return `
     <article class="card-curso">
       <span class="etiqueta tipo-${esc(c.tipo)}">${esc(tipo?.nome || c.tipo)}</span>
       <h4>${esc(c.nome)}</h4>
       ${sub ? `<p class="curso-sub">${esc(sub)}</p>` : ''}
       ${
-        c.valor
-          ? `<p class="preco">${c.valorDe ? `<span class="preco-de">de <s>${esc(c.valorDe)}</s></span>` : ''}<span class="preco-por">${c.valorDe ? 'por ' : ''}<strong>${esc(c.valor)}</strong></span></p>`
+        normal !== null
+          ? `<p class="preco">${black !== null ? `<span class="preco-de">de <s>${reais(normal)}</s></span>` : ''}<span class="preco-por">${black !== null ? 'por ' : ''}<strong>${reais(black ?? normal)}</strong><span class="preco-mes">/mês</span></span>${black === null ? '<span class="preco-nota">valor normal</span>' : ''}</p>`
           : ''
       }
-      ${c.detalhes?.length ? `<ul class="detalhes">${c.detalhes.map((d) => `<li>${esc(d)}</li>`).join('')}</ul>` : ''}
+      ${flags.length ? `<ul class="flags">${flags.map(([nome, v]) => `<li class="${v ? 'sim' : 'nao'}">${v ? '✓' : '✗'} ${esc(nome)}</li>`).join('')}</ul>` : ''}
       <div class="card-acoes">
         <button type="button" class="btn btn-primario" data-acao="copiar-msg" data-curso="${esc(c.id)}">📋 Copiar mensagem</button>
         <button type="button" class="btn" data-acao="abrir-msg" data-curso="${esc(c.id)}">💬 Personalizar</button>
@@ -380,7 +425,7 @@ function opcoesCursos(selecionado, rotuloVazio) {
     const doTipo = cursos.filter((c) => c.tipo === t.id);
     if (!doTipo.length) return '';
     return `<optgroup label="${esc(t.nome)}">${doTipo
-      .map((c) => `<option value="${esc(c.id)}" ${c.id === selecionado ? 'selected' : ''}>${esc(c.nome)}</option>`)
+      .map((c) => `<option value="${esc(c.id)}" ${c.id === selecionado ? 'selected' : ''}>${esc(rotuloCurso(c))}</option>`)
       .join('')}</optgroup>`;
   }).join('');
   return `<option value="">${esc(rotuloVazio)}</option>${grupos}`;

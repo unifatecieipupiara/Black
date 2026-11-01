@@ -55,8 +55,13 @@ Em 1–2 minutos o site fica disponível em <https://unifatecieipupiara.github.i
 Tudo fica em [`js/dados.js`](js/dados.js). Pelo próprio GitHub: abra o arquivo → ícone de lápis
 (*Edit*) → altere → *Commit changes*. O site atualiza sozinho em 1–2 minutos.
 
-Quando os dados reais estiverem cadastrados, troque `DADOS_DE_EXEMPLO = true` para `false`
-para remover o aviso amarelo do topo.
+- **Desconto da Black Friday:** `DESCONTO_BLACK` (em %, por tipo de curso). Para um valor específico
+  de um curso, preencha a última coluna da linha do curso.
+- **Cursos:** uma linha por curso (nome, modalidade, duração, mensalidade normal, estágio, TCC,
+  prova no polo, aula no MegaPolo). Os de Graduação e 2ª Graduação vieram do Notion.
+
+Enquanto faltar algum link, cupom, desconto ou lista de cursos, o topo da página mostra um aviso
+amarelo dizendo o que ainda falta. Ele some sozinho quando tudo estiver preenchido.
 
 > **Atenção:** este repositório é público. Cursos, valores, links e cupons ficam visíveis para
 > quem abrir o repositório ou o site. Os **leads não ficam aqui**: eles são guardados no Firebase e

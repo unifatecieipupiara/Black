@@ -5,6 +5,7 @@ import { criarArmazenamento } from './armazenamento.js';
 // ---------------------------------------------------------------- base
 
 const STATUS = [
+  { id: 'contatar', nome: 'Entrar em contato' },
   { id: 'andamento', nome: 'Em andamento' },
   { id: 'sem_retorno', nome: 'Sem retorno' },
   { id: 'matriculado', nome: 'Matriculado' },

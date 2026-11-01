@@ -5,7 +5,7 @@ Painel simples para a campanha de Black Friday (novembro):
 - **Links de matrícula e cupons** no topo (uso interno): Graduação, 2ª Graduação, Pós-Graduação e Transferência.
 - **Lista de cursos** com valores e **mensagem pronta** para copiar ou abrir direto no WhatsApp
   (a mensagem não inclui link nem cupom).
-- **Leads** compartilhados entre a equipe: WhatsApp, status (*Em andamento*, *Sem retorno*,
+- **Leads** compartilhados entre a equipe: WhatsApp, status (*Entrar em contato*, *Em andamento*, *Sem retorno*,
   *Matriculado*, *Perdido*) e observação opcional (ex.: curso de interesse).
 - Exportação dos leads para planilha (CSV, abre no Excel / Google Planilhas).
 

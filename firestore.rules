@@ -23,7 +23,7 @@ service cloud.firestore {
           'telefone', 'status', 'obs', 'criadoEm', 'criadoPor', 'atualizadoEm', 'atualizadoPor'
         ])
         && d.telefone is string && d.telefone.size() > 0 && d.telefone.size() <= 40
-        && d.status in ['andamento', 'sem_retorno', 'matriculado', 'perdido']
+        && d.status in ['contatar', 'andamento', 'sem_retorno', 'matriculado', 'perdido']
         && (!('obs' in d) || (d.obs is string && d.obs.size() <= 2000));
     }
 

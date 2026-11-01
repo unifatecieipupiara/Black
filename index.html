@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Black Friday · UniFatecie</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%230d0d10'/><text x='32' y='42' font-size='26' font-family='Arial' font-weight='700' text-anchor='middle' fill='%23ffc21a'>BF</text></svg>">
+  <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+  <header class="topo">
+    <div class="topo-int">
+      <div class="marca">
+        <span class="selo">BLACK<br>FRIDAY</span>
+        <div>
+          <h1 id="tituloPolo">UniFatecie</h1>
+          <p id="subtitulo"></p>
+        </div>
+      </div>
+      <div id="usuario" class="usuario"></div>
+    </div>
+  </header>
+
+  <div id="avisos"></div>
+
+  <main class="conteudo">
+    <section aria-labelledby="h-matriculas">
+      <h2 id="h-matriculas" class="titulo-secao">Links de matrícula e cupons</h2>
+      <div id="cardsMatricula" class="grade-matricula"></div>
+    </section>
+
+    <nav class="abas" role="tablist" aria-label="Seções">
+      <button type="button" role="tab" id="tab-cursos" data-aba="cursos" aria-controls="abaCursos">📚 Cursos</button>
+      <button type="button" role="tab" id="tab-leads" data-aba="leads" aria-controls="abaLeads">👥 Leads <span id="contLeads" class="contador" hidden></span></button>
+    </nav>
+
+    <section id="abaCursos" class="aba" role="tabpanel" aria-labelledby="tab-cursos">
+      <div class="barra">
+        <input type="search" id="buscaCurso" class="campo-busca" placeholder="Buscar curso…" aria-label="Buscar curso">
+        <div id="filtrosTipo" class="chips" role="group" aria-label="Filtrar por tipo"></div>
+      </div>
+      <div id="listaCursos"></div>
+    </section>
+
+    <section id="abaLeads" class="aba" role="tabpanel" aria-labelledby="tab-leads" hidden>
+      <div id="leadsEstado" class="estado" hidden></div>
+      <div id="leadsConteudo" hidden>
+        <div id="resumo" class="resumo"></div>
+        <div class="barra">
+          <input type="search" id="buscaLead" class="campo-busca" placeholder="Buscar por nome, telefone ou curso…" aria-label="Buscar lead">
+          <div class="barra-acoes">
+            <button type="button" class="btn btn-primario" data-acao="novo-lead">+ Novo lead</button>
+            <button type="button" class="btn" data-acao="exportar">⬇ Exportar planilha</button>
+          </div>
+        </div>
+        <div id="listaLeads" class="lista-leads"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="rodape" id="rodape"></footer>
+
+  <!-- Cadastro / edição de lead -->
+  <dialog id="dlgLead" aria-labelledby="dlgLeadTitulo">
+    <form id="formLead" method="dialog" class="form">
+      <h3 id="dlgLeadTitulo">Novo lead</h3>
+      <label>Nome *
+        <input name="nome" required maxlength="200" autocomplete="off">
+      </label>
+      <label>WhatsApp
+        <input name="telefone" type="tel" inputmode="tel" placeholder="(77) 99999-9999" maxlength="40" autocomplete="off">
+      </label>
+      <div class="form-linha">
+        <label>Curso de interesse
+          <select name="cursoId"></select>
+        </label>
+        <label>Ingresso
+          <select name="ingresso"></select>
+        </label>
+      </div>
+      <label>Status
+        <select name="status"></select>
+      </label>
+      <label>Observação
+        <textarea name="obs" rows="3" maxlength="2000" placeholder="Opcional"></textarea>
+      </label>
+      <div class="form-botoes">
+        <button type="button" class="btn" data-acao="fechar-dialogo">Cancelar</button>
+        <button type="submit" class="btn btn-primario">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Mensagem pronta -->
+  <dialog id="dlgMensagem" aria-labelledby="dlgMsgTitulo">
+    <div class="form">
+      <h3 id="dlgMsgTitulo">Mensagem para o lead</h3>
+      <div class="form-linha">
+        <label>Curso
+          <select id="msgCurso"></select>
+        </label>
+        <label>Ingresso
+          <select id="msgIngresso"></select>
+        </label>
+      </div>
+      <div class="form-linha">
+        <label>Nome do lead
+          <input id="msgNome" placeholder="Opcional" autocomplete="off">
+        </label>
+        <label>WhatsApp
+          <input id="msgTelefone" type="tel" inputmode="tel" placeholder="Opcional" autocomplete="off">
+        </label>
+      </div>
+      <label>Texto (pode editar antes de enviar)
+        <textarea id="msgTexto" rows="14"></textarea>
+      </label>
+      <div class="form-botoes">
+        <button type="button" class="btn" data-acao="fechar-dialogo">Fechar</button>
+        <button type="button" class="btn" data-acao="msg-copiar">📋 Copiar</button>
+        <a id="msgWhats" class="btn btn-whats" target="_blank" rel="noopener">💬 Abrir no WhatsApp</a>
+      </div>
+    </div>
+  </dialog>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

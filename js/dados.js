@@ -28,8 +28,6 @@ export const DESCONTO_BLACK = {
 // ---------------------------------------------------------------------
 //  MENSAGEM PRONTA
 //  Marcadores que podem ser usados:
-//    {saudacao}  "Olá, Maria! Tudo bem? 😊" — só aparece se o nome do lead
-//                for preenchido em "Personalizar"
 //    {curso}     nome do curso
 //    {grau}      bacharelado, licenciatura, tecnólogo…
 //    {duracao}   duração do curso
@@ -44,8 +42,7 @@ export const DESCONTO_BLACK = {
 //  Formatação do WhatsApp: *negrito*, _itálico_, ~riscado~.
 // ---------------------------------------------------------------------
 
-const MENSAGEM_PADRAO = `{saudacao}
-Nosso curso foi desenvolvido para unir *flexibilidade e organização*, garantindo que você estude de acordo com a sua rotina sem abrir mão da qualidade reconhecida pelo MEC.
+const MENSAGEM_PADRAO = `Nosso curso foi desenvolvido para unir *flexibilidade e organização*, garantindo que você estude de acordo com a sua rotina sem abrir mão da qualidade reconhecida pelo MEC.
 
 Estamos na *{campanha}* e tenho uma condição especial para você:
 
@@ -63,7 +60,7 @@ _Valor já com *desconto de pontualidade* para o pagamento efetuado até a data 
 // Deixe '' para não mostrar a linha.
 export const OBSERVACOES = {
   provaPolo: {
-    sim: '📝 Esse curso tem provas presenciais no polo.', // PROVISÓRIO — aguardando o texto usado no Notion
+    sim: '📝 As provas presenciais são realizadas no Polo mais próximo, a partir do 2º ano do curso, geralmente a cada 3 meses.',
     nao: '📝 Esse curso tem apenas uma prova presencial, geralmente realizada no último ano.',
   },
   estagio: {
@@ -75,7 +72,7 @@ export const OBSERVACOES = {
     nao: '📖 Esse curso não exige TCC.',
   },
   megaPolo: {
-    sim: '🔬 Esse curso tem aulas presenciais no MegaPolo.', // PROVISÓRIO
+    sim: '📚 Esse curso possui aulas presenciais no MegaPolo a partir do 3° ano de curso, entre 2 e 4 vezes ao ano. Na Bahia temos 5 MegaPolos: Salvador, Feira de Santana, Barreiras, Xique-Xique e Vitória da Conquista.',
     nao: '',
   },
 };

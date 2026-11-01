@@ -128,11 +128,10 @@ function tempoRelativo(ms) {
 
 const dataHora = (ms) => (ms ? new Date(ms).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '');
 const primeiroNome = (s) => String(s ?? '').trim().split(/\s+/)[0] || '';
-const capitalizar = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
 // ---------------------------------------------------------------- mensagens
 
-function montarMensagem({ cursoId, ingresso, nome }) {
+function montarMensagem({ cursoId, ingresso }) {
   const curso = cursoPorId[cursoId];
   if (!curso) return '';
   const tipo = tipoPorId[ingresso] || tipoPorId[curso.tipo];
@@ -151,14 +150,9 @@ function montarMensagem({ cursoId, ingresso, nome }) {
     polo: POLO.nome,
     campanha: POLO.campanha,
   };
-  const nomeLead = capitalizar(primeiroNome(nome));
-  valores.saudacao = nomeLead ? `Olá, ${nomeLead}! Tudo bem? 😊\n` : '';
 
   const linhas = modelo.split('\n').flatMap((linhaOriginal) => {
-    let linha = linhaOriginal;
-    if (linha.includes('{nome}')) {
-      linha = nomeLead ? linha.replaceAll('{nome}', nomeLead) : linha.replace(/,?\s*\{nome\}/g, '');
-    }
+    const linha = linhaOriginal;
     const chaves = [...linha.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).filter((k) => k in valores);
     if (chaves.length && chaves.every((k) => !valores[k])) return [];
     return [linha.replace(/\{(\w+)\}/g, (m, k) => (k in valores ? valores[k] : m))];
@@ -482,10 +476,9 @@ async function salvarLead(e) {
 
 // ---------------------------------------------------------------- mensagem (diálogo)
 
-function abrirMensagem({ cursoId = '', ingresso = '', nome = '', telefone = '' } = {}) {
+function abrirMensagem({ cursoId = '', ingresso = '', telefone = '' } = {}) {
   $('#msgCurso').innerHTML = opcoesCursos(cursoId, 'Escolha o curso');
   $('#msgIngresso').innerHTML = opcoesTipos(ingresso || cursoPorId[cursoId]?.tipo || TIPOS[0]?.id);
-  $('#msgNome').value = nome;
   $('#msgTelefone').value = telefone;
   atualizarMensagem();
   $('#dlgMensagem').showModal();
@@ -495,7 +488,6 @@ function atualizarMensagem() {
   const texto = montarMensagem({
     cursoId: $('#msgCurso').value,
     ingresso: $('#msgIngresso').value,
-    nome: $('#msgNome').value,
   });
   $('#msgTexto').value = texto;
   atualizarLinkWhats();
@@ -643,7 +635,7 @@ $('#msgCurso').addEventListener('change', (e) => {
   if (tipo) $('#msgIngresso').value = tipo;
   atualizarMensagem();
 });
-for (const id of ['#msgIngresso', '#msgNome']) $(id).addEventListener('input', atualizarMensagem);
+$('#msgIngresso').addEventListener('input', atualizarMensagem);
 $('#msgTelefone').addEventListener('input', atualizarLinkWhats);
 $('#msgTexto').addEventListener('input', atualizarLinkWhats);
 

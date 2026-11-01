@@ -1,4 +1,4 @@
-import { POLO, DESCONTO_BLACK, OBSERVACOES, TIPOS, CURSOS } from './dados.js';
+import { POLO, GRUPOS_BLACK, TIPOS_COM_GRUPOS, OBSERVACOES, TIPOS, CURSOS } from './dados.js';
 import { FIREBASE_CONFIG } from './config.js';
 import { criarArmazenamento } from './armazenamento.js';
 
@@ -31,13 +31,21 @@ const cursos = CURSOS.map((c) => ({ ...c, id: c.id || slug(`${c.tipo}-${c.nome}-
 
 const reais = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).replace(/\s/g, ' ');
 
+function grupoCurso(c) {
+  if (!TIPOS_COM_GRUPOS.includes(c.tipo) || typeof c.valorNormal !== 'number') return null;
+  return GRUPOS_BLACK.find((g) => Math.abs(g.de - c.valorNormal) < 0.005) || null;
+}
+
 function precoCurso(c) {
   const normal = typeof c.valorNormal === 'number' ? c.valorNormal : null;
   if (normal === null) return { normal: null, black: null };
-  const desconto = DESCONTO_BLACK[c.tipo];
-  let black = typeof c.valorBlack === 'number' ? c.valorBlack : null;
-  if (black === null && typeof desconto === 'number' && desconto > 0) black = Math.round(normal * (100 - desconto)) / 100;
+  const black = typeof c.valorBlack === 'number' ? c.valorBlack : (grupoCurso(c)?.por ?? null);
   return { normal, black: black !== null && black < normal ? black : null };
+}
+
+// Transferência: só cursos de Graduação de grupos que aceitam transferência.
+function aceitaTransferencia(c) {
+  return c.tipo === 'graduacao' && Boolean(grupoCurso(c)?.transferencia);
 }
 
 function detalhesCurso(c) {
@@ -146,6 +154,7 @@ function montarMensagem({ cursoId, ingresso }) {
     valorDe: black !== null ? reais(normal) : '',
     oferta: valor === null ? '' : black !== null ? `~${reais(normal)}~ por *${reais(black)}*` : `*${reais(normal)}*`,
     matricula: tipo?.matricula || '',
+    primeiraMensalidade: tipo?.primeiraMensalidade || '',
     detalhes: detalhesCurso(curso).join('\n'),
     polo: POLO.nome,
     campanha: POLO.campanha,
@@ -174,11 +183,18 @@ function renderAvisos() {
   const pendencias = [];
   const semLink = TIPOS.filter((t) => !t.link).map((t) => t.nome);
   const semCupom = TIPOS.filter((t) => !t.cupom).map((t) => t.nome);
-  const semCursos = TIPOS.filter((t) => t.id in DESCONTO_BLACK && !cursos.some((c) => c.tipo === t.id)).map((t) => t.nome);
-  const semDesconto = cursos.some((c) => precoCurso(c).normal !== null && precoCurso(c).black === null);
+  const semCursos = TIPOS.filter((t) => ['graduacao', 'segunda', 'pos'].includes(t.id) && !cursos.some((c) => c.tipo === t.id)).map(
+    (t) => t.nome,
+  );
+  const semBlack = cursos.filter((c) => precoCurso(c).normal !== null && precoCurso(c).black === null);
   if (semLink.length) pendencias.push(`link de matrícula (${semLink.join(', ')})`);
   if (semCupom.length) pendencias.push(`cupom (${semCupom.join(', ')})`);
-  if (semDesconto) pendencias.push('valores da Black Friday — por enquanto aparecem os valores normais, sem desconto');
+  if (semBlack.length) {
+    const nomes = semBlack.map((c) => `${c.nome} (${tipoPorId[c.tipo]?.nome || c.tipo})`);
+    pendencias.push(
+      `valor da Black Friday de ${nomes.length > 6 ? `${nomes.length} cursos` : nomes.join(', ')} — aparece o valor normal`,
+    );
+  }
   if (semCursos.length) pendencias.push(`cursos de ${semCursos.join(', ')}`);
   if (pendencias.length) {
     avisos.push(
@@ -251,7 +267,9 @@ function cardCurso(c) {
   const tipo = tipoPorId[c.tipo];
   const sub = [c.grau, c.duracao].filter(Boolean).join(' · ');
   const { normal, black } = precoCurso(c);
+  const grupo = grupoCurso(c);
   const flags = [
+    ...(c.tipo === 'graduacao' ? [['Transferência', aceitaTransferencia(c)]] : []),
     ['TCC', c.tcc],
     ['Estágio', c.estagio],
     ['Prova no polo', c.provaPolo],
@@ -259,7 +277,10 @@ function cardCurso(c) {
   ].filter(([, v]) => typeof v === 'boolean');
   return `
     <article class="card-curso">
-      <span class="etiqueta tipo-${esc(c.tipo)}">${esc(tipo?.nome || c.tipo)}</span>
+      <div class="etiquetas">
+        <span class="etiqueta tipo-${esc(c.tipo)}">${esc(tipo?.nome || c.tipo)}</span>
+        ${grupo ? `<span class="etiqueta etiqueta-grupo">${esc(grupo.nome)}</span>` : ''}
+      </div>
       <h4>${esc(c.nome)}</h4>
       ${sub ? `<p class="curso-sub">${esc(sub)}</p>` : ''}
       ${
@@ -490,6 +511,18 @@ function atualizarMensagem() {
     ingresso: $('#msgIngresso').value,
   });
   $('#msgTexto').value = texto;
+  const curso = cursoPorId[$('#msgCurso').value];
+  const aviso = $('#msgAviso');
+  let textoAviso = '';
+  if (curso && $('#msgIngresso').value === 'transferencia' && !aceitaTransferencia(curso)) {
+    const grupo = grupoCurso(curso);
+    textoAviso =
+      curso.tipo !== 'graduacao'
+        ? 'Transferência vale só para cursos de Graduação.'
+        : `Este curso não aceita transferência${grupo ? ` (${grupo.nome})` : ''}. Transferência só para os grupos Base, 1, 2 e 3.`;
+  }
+  aviso.textContent = textoAviso ? `⚠️ ${textoAviso}` : '';
+  aviso.hidden = !textoAviso;
   atualizarLinkWhats();
 }
 

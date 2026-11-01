@@ -55,8 +55,9 @@ Em 1–2 minutos o site fica disponível em <https://unifatecieipupiara.github.i
 Tudo fica em [`js/dados.js`](js/dados.js). Pelo próprio GitHub: abra o arquivo → ícone de lápis
 (*Edit*) → altere → *Commit changes*. O site atualiza sozinho em 1–2 minutos.
 
-- **Desconto da Black Friday:** `DESCONTO_BLACK` (em %, por tipo de curso). Para um valor específico
-  de um curso, preencha a última coluna da linha do curso.
+- **Valores da Black Friday:** `GRUPOS_BLACK` (Grupo Base a Grupo 6, "de/por"). O grupo de cada
+  curso é encontrado pela mensalidade normal. Para um valor específico de um curso, preencha a
+  última coluna da linha do curso.
 - **Cursos:** uma linha por curso (nome, modalidade, duração, mensalidade normal, estágio, TCC,
   prova no polo, aula no MegaPolo). Os de Graduação e 2ª Graduação vieram do Notion.
 

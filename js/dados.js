@@ -12,18 +12,25 @@ export const POLO = {
 };
 
 // ---------------------------------------------------------------------
-//  DESCONTO DA BLACK FRIDAY (em %), por tipo de curso.
-//  null = ainda não definido: o sistema mostra só o valor normal.
-//  Ex.: graduacao: 20  →  "de R$ 99,00 por R$ 79,20"
+//  VALORES DA BLACK FRIDAY — Graduação, 2ª Graduação e Transferência
+//  O grupo de cada curso é encontrado pela mensalidade normal ("de").
+//  "transferencia: false" = o grupo não aceita transferência.
 //  Para um valor específico de um curso, preencha a última coluna
 //  ("valor Black") na tabela de cursos lá embaixo.
 // ---------------------------------------------------------------------
 
-export const DESCONTO_BLACK = {
-  graduacao: null,
-  segunda: null,
-  pos: null,
-};
+export const GRUPOS_BLACK = [
+  { nome: 'Grupo Base', de: 67.5, por: 45.0, transferencia: true },
+  { nome: 'Grupo 1', de: 89.7, por: 59.8, transferencia: true },
+  { nome: 'Grupo 2', de: 99.0, por: 66.0, transferencia: true },
+  { nome: 'Grupo 3', de: 149.7, por: 99.8, transferencia: true },
+  { nome: 'Grupo 4', de: 239.7, por: 159.8, transferencia: false },
+  { nome: 'Grupo 5', de: 277.7, por: 212.9, transferencia: false },
+  { nome: 'Grupo 6', de: 299.0, por: 229.23, transferencia: false },
+];
+
+// Tipos de curso em que os grupos acima valem.
+export const TIPOS_COM_GRUPOS = ['graduacao', 'segunda'];
 
 // ---------------------------------------------------------------------
 //  MENSAGEM PRONTA
@@ -35,6 +42,7 @@ export const DESCONTO_BLACK = {
 //    {valor}     valor com desconto (ou o normal, se não houver desconto)
 //    {valorDe}   valor normal, quando há desconto
 //    {matricula} valor da matrícula do tipo de ingresso
+//    {primeiraMensalidade} mês da 1ª mensalidade do tipo de ingresso
 //    {detalhes}  observações de prova, estágio, TCC e MegaPolo (ver OBSERVACOES)
 //    {polo}      nome do polo
 //    {campanha}  nome da campanha
@@ -51,6 +59,7 @@ Estamos na *{campanha}* e tenho uma condição especial para você:
 ⏱️ Duração: {duracao}
 💰 Mensalidade: {oferta}
 ✨ Matrícula: {matricula}
+🗓️ 1ª Mensalidade: {primeiraMensalidade}
 
 {detalhes}
 
@@ -92,6 +101,7 @@ export const TIPOS = [
     link: '', // falta o link de matrícula da Graduação
     cupom: '',
     matricula: 'R$ 19,90',
+    primeiraMensalidade: 'Dezembro',
     obs: 'Use o cupom no momento da matrícula.',
     mensagem: MENSAGEM_PADRAO,
   },
@@ -101,6 +111,7 @@ export const TIPOS = [
     link: 'https://segundagraduacao.fatecie.edu.br/inscription?origem=polo&polo=BwOyo2BF1ALSH3PNae9bLQ==',
     cupom: '',
     matricula: '',
+    primeiraMensalidade: 'Dezembro',
     obs: 'Para quem já tem diploma de graduação.',
     mensagem: MENSAGEM_PADRAO,
   },
@@ -119,7 +130,8 @@ export const TIPOS = [
     link: 'https://matriculasunifatecie.com.br/matricula-transferencia-externa-polos/',
     cupom: '',
     matricula: '',
-    obs: 'Para quem vem de outra instituição.',
+    primeiraMensalidade: 'Dezembro',
+    obs: 'Só para cursos dos grupos Base, 1, 2 e 3.',
     mensagem: MENSAGEM_PADRAO,
   },
 ];

@@ -105,6 +105,7 @@ export const OBSERVACOES = {
 //  "link" e "cupom" são de USO INTERNO: aparecem só no card do topo e
 //  nunca entram na mensagem enviada ao lead.
 //  "matricula" é o valor da matrícula que vai na mensagem.
+//  "extras" são outros links que aparecem no card, ao lado de "Acessar link".
 // ---------------------------------------------------------------------
 
 export const TIPOS = [
@@ -132,6 +133,7 @@ export const TIPOS = [
     id: 'pos',
     nome: 'Pós-Graduação',
     link: 'https://matriculapos.fatecie.edu.br/inscription?origem=polo',
+    extras: [{ rotulo: 'Catálogo e valores', url: 'https://repositorio-dec-unifatecie.dociletulip6.chatgpt.site/#catalogo' }],
     cupom: '',
     matricula: 'R$ 29,90',
     obs: 'Use o cupom no momento da matrícula.',

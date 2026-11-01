@@ -253,6 +253,10 @@ function renderMatriculas() {
               ? `<a class="btn btn-primario" href="${esc(t.link)}" target="_blank" rel="noopener">Acessar link ↗</a>`
               : '<span class="sem-link">Link ainda não cadastrado</span>'
           }
+          ${(t.extras || [])
+            .filter((x) => x.url)
+            .map((x) => `<a class="btn" href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.rotulo || 'Abrir')} ↗</a>`)
+            .join('')}
         </div>
       </article>`;
   }).join('');

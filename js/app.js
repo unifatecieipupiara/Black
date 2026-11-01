@@ -1,4 +1,4 @@
-import { POLO, DESCONTO_BLACK, TIPOS, CURSOS } from './dados.js';
+import { POLO, DESCONTO_BLACK, OBSERVACOES, TIPOS, CURSOS } from './dados.js';
 import { FIREBASE_CONFIG } from './config.js';
 import { criarArmazenamento } from './armazenamento.js';
 
@@ -40,14 +40,11 @@ function precoCurso(c) {
   return { normal, black: black !== null && black < normal ? black : null };
 }
 
-const sn = (v) => (v ? 'sim' : 'não');
-
 function detalhesCurso(c) {
-  const linhas = [];
-  if (typeof c.tcc === 'boolean' || typeof c.estagio === 'boolean') linhas.push(`📝 TCC: ${sn(c.tcc)} · Estágio: ${sn(c.estagio)}`);
-  if (c.provaPolo) linhas.push('🏫 Provas no polo');
-  if (c.megaPolo) linhas.push('🔬 Aulas presenciais no MegaPolo');
-  return linhas;
+  return ['provaPolo', 'estagio', 'tcc', 'megaPolo']
+    .filter((campo) => typeof c[campo] === 'boolean')
+    .map((campo) => OBSERVACOES[campo]?.[c[campo] ? 'sim' : 'nao'] || '')
+    .filter(Boolean);
 }
 
 const rotuloCurso = (c) => (c.grau ? `${c.nome} – ${c.grau}` : c.nome);
@@ -148,12 +145,14 @@ function montarMensagem({ cursoId, ingresso, nome }) {
     duracao: curso.duracao || '',
     valor: valor !== null ? reais(valor) : '',
     valorDe: black !== null ? reais(normal) : '',
-    oferta: valor === null ? '' : black !== null ? `de ~${reais(normal)}~ por *${reais(black)}*` : `*${reais(normal)}*`,
+    oferta: valor === null ? '' : black !== null ? `~${reais(normal)}~ por *${reais(black)}*` : `*${reais(normal)}*`,
+    matricula: tipo?.matricula || '',
     detalhes: detalhesCurso(curso).join('\n'),
     polo: POLO.nome,
     campanha: POLO.campanha,
   };
   const nomeLead = capitalizar(primeiroNome(nome));
+  valores.saudacao = nomeLead ? `Olá, ${nomeLead}! Tudo bem? 😊\n` : '';
 
   const linhas = modelo.split('\n').flatMap((linhaOriginal) => {
     let linha = linhaOriginal;
@@ -228,6 +227,7 @@ function renderMatriculas() {
           <span class="cupom-codigo">${t.cupom ? esc(t.cupom) : '—'}</span>
           ${t.cupom ? `<button type="button" class="btn btn-mini" data-acao="copiar-cupom" data-tipo="${esc(t.id)}" aria-label="Copiar cupom ${esc(t.nome)}">Copiar</button>` : ''}
         </div>
+        ${t.matricula ? `<p class="card-obs">Matrícula: <strong>${esc(t.matricula)}</strong></p>` : ''}
         ${t.obs ? `<p class="card-obs">${esc(t.obs)}</p>` : ''}
         <div class="card-acoes">
           ${

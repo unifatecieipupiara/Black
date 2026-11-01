@@ -26,23 +26,66 @@ export const DESCONTO_BLACK = {
 };
 
 // ---------------------------------------------------------------------
-//  TIPOS DE INGRESSO
-//  Cada tipo vira um card no topo da página e tem a sua própria mensagem.
-//  "link" e "cupom" são de USO INTERNO: aparecem só no card do topo e
-//  nunca entram na mensagem enviada ao lead.
-//
-//  Marcadores que podem ser usados na mensagem:
-//    {nome}      primeiro nome do lead (some sozinho se não houver nome)
+//  MENSAGEM PRONTA
+//  Marcadores que podem ser usados:
+//    {saudacao}  "Olá, Maria! Tudo bem? 😊" — só aparece se o nome do lead
+//                for preenchido em "Personalizar"
 //    {curso}     nome do curso
 //    {grau}      bacharelado, licenciatura, tecnólogo…
 //    {duracao}   duração do curso
-//    {oferta}    "de ~R$ X~ por *R$ Y*" (ou só o valor, se não houver desconto)
+//    {oferta}    "~R$ 99,00~ por *R$ 79,20*" (ou só o valor, sem desconto)
 //    {valor}     valor com desconto (ou o normal, se não houver desconto)
 //    {valorDe}   valor normal, quando há desconto
-//    {detalhes}  TCC, estágio, provas no polo e aulas no MegaPolo
+//    {matricula} valor da matrícula do tipo de ingresso
+//    {detalhes}  observações de prova, estágio, TCC e MegaPolo (ver OBSERVACOES)
 //    {polo}      nome do polo
 //    {campanha}  nome da campanha
 //  Linhas cujos marcadores ficarem vazios são removidas automaticamente.
+//  Formatação do WhatsApp: *negrito*, _itálico_, ~riscado~.
+// ---------------------------------------------------------------------
+
+const MENSAGEM_PADRAO = `{saudacao}
+Nosso curso foi desenvolvido para unir *flexibilidade e organização*, garantindo que você estude de acordo com a sua rotina sem abrir mão da qualidade reconhecida pelo MEC.
+
+Estamos na *{campanha}* e tenho uma condição especial para você:
+
+🎓 *{curso}*
+📘 {grau} · EAD
+⏱️ Duração: {duracao}
+💰 Mensalidade: {oferta}
+✨ Matrícula: {matricula}
+
+{detalhes}
+
+_Valor já com *desconto de pontualidade* para o pagamento efetuado até a data de vencimento._`;
+
+// Textos de cada observação, conforme o curso tenha (sim) ou não cada item.
+// Deixe '' para não mostrar a linha.
+export const OBSERVACOES = {
+  provaPolo: {
+    sim: '📝 Esse curso tem provas presenciais no polo.', // PROVISÓRIO — aguardando o texto usado no Notion
+    nao: '📝 Esse curso tem apenas uma prova presencial, geralmente realizada no último ano.',
+  },
+  estagio: {
+    sim: '🎓 Esse curso exige Estágio Obrigatório.',
+    nao: '🎓 Esse curso não exige Estágio Obrigatório.',
+  },
+  tcc: {
+    sim: '📖 Esse curso exige TCC.',
+    nao: '📖 Esse curso não exige TCC.',
+  },
+  megaPolo: {
+    sim: '🔬 Esse curso tem aulas presenciais no MegaPolo.', // PROVISÓRIO
+    nao: '',
+  },
+};
+
+// ---------------------------------------------------------------------
+//  TIPOS DE INGRESSO
+//  Cada tipo vira um card no topo da página.
+//  "link" e "cupom" são de USO INTERNO: aparecem só no card do topo e
+//  nunca entram na mensagem enviada ao lead.
+//  "matricula" é o valor da matrícula que vai na mensagem.
 // ---------------------------------------------------------------------
 
 export const TIPOS = [
@@ -51,70 +94,36 @@ export const TIPOS = [
     nome: 'Graduação',
     link: '', // falta o link de matrícula da Graduação
     cupom: '',
+    matricula: 'R$ 19,90',
     obs: 'Use o cupom no momento da matrícula.',
-    mensagem: `Olá, {nome}! Tudo bem? 😊
-
-Aqui é da *{polo}*. Estamos na *{campanha}* e tenho uma condição especial para você:
-
-🎓 *{curso}*
-📘 {grau} · EAD
-⏱️ Duração: {duracao}
-💰 Mensalidade: {oferta}
-{detalhes}
-
-Quer garantir essa condição? É só me responder por aqui que eu te ajudo com a matrícula! 😉`,
+    mensagem: MENSAGEM_PADRAO,
   },
   {
     id: 'segunda',
     nome: '2ª Graduação',
     link: 'https://segundagraduacao.fatecie.edu.br/inscription?origem=polo&polo=BwOyo2BF1ALSH3PNae9bLQ==',
     cupom: '',
+    matricula: '',
     obs: 'Para quem já tem diploma de graduação.',
-    mensagem: `Olá, {nome}! Tudo bem? 😊
-
-Aqui é da *{polo}*. Já tem um diploma de graduação? Na *{campanha}* a sua *segunda graduação* está com condição especial:
-
-🎓 *{curso}*
-📘 {grau} · EAD
-⏱️ Duração: {duracao}
-💰 Mensalidade: {oferta}
-{detalhes}
-
-Quer garantir essa condição? É só me responder por aqui que eu te ajudo com a matrícula! 😉`,
+    mensagem: MENSAGEM_PADRAO,
   },
   {
     id: 'pos',
     nome: 'Pós-Graduação',
     link: 'https://matriculapos.fatecie.edu.br/inscription?origem=polo',
     cupom: '',
+    matricula: '',
     obs: 'Use o cupom no momento da matrícula.',
-    mensagem: `Olá, {nome}! Tudo bem? 😊
-
-Aqui é da *{polo}*. Na *{campanha}* a sua pós-graduação está com condição especial:
-
-🎓 *{curso}*
-⏱️ Duração: {duracao}
-💰 Mensalidade: {oferta}
-{detalhes}
-
-Quer garantir essa condição? É só me responder por aqui que eu te ajudo com a matrícula! 😉`,
+    mensagem: MENSAGEM_PADRAO,
   },
   {
     id: 'transferencia',
     nome: 'Transferência',
     link: 'https://matriculasunifatecie.com.br/matricula-transferencia-externa-polos/',
     cupom: '',
+    matricula: '',
     obs: 'Para quem vem de outra instituição.',
-    mensagem: `Olá, {nome}! Tudo bem? 😊
-
-Aqui é da *{polo}*. Quer transferir seu curso para a UniFatecie? Na *{campanha}* a transferência está com condição especial:
-
-🎓 *{curso}*
-📘 {grau} · EAD
-💰 Mensalidade: {oferta}
-{detalhes}
-
-Quer garantir essa condição? É só me responder por aqui que eu te ajudo com a matrícula! 😉`,
+    mensagem: MENSAGEM_PADRAO,
   },
 ];
 

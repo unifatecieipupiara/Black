@@ -10,10 +10,10 @@
 // =====================================================================
 
 export const FIREBASE_CONFIG = {
-  apiKey: '',
-  authDomain: '',
-  projectId: '',
-  storageBucket: '',
-  messagingSenderId: '',
-  appId: '',
+  apiKey: 'AIzaSyDRwM3Zkuh4KSx8FVN883K-U9hU5WcO5os',
+  authDomain: 'black-friday-polo.firebaseapp.com',
+  projectId: 'black-friday-polo',
+  storageBucket: 'black-friday-polo.firebasestorage.app',
+  messagingSenderId: '655278559934',
+  appId: '1:655278559934:web:3b7bb24f74ea887cd504ef',
 };

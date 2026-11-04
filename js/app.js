@@ -260,8 +260,6 @@ function renderMatriculas() {
                 .join('')
             : '<div class="cupom"><span class="cupom-rotulo">Voucher</span><span class="cupom-codigo">—</span></div>'
         }
-        ${t.matricula ? `<p class="card-obs">Matrícula: <strong>${esc(t.matricula)}</strong></p>` : ''}
-        ${t.obs ? `<p class="card-obs">${esc(t.obs)}</p>` : ''}
         <div class="card-acoes">
           ${
             temLink
@@ -273,6 +271,8 @@ function renderMatriculas() {
             .map((x) => `<a class="btn" href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.rotulo || 'Abrir')} ↗</a>`)
             .join('')}
         </div>
+        ${t.matricula ? `<p class="card-obs">Matrícula: <strong>${esc(t.matricula)}</strong></p>` : ''}
+        ${t.obs ? `<p class="card-obs">${esc(t.obs)}</p>` : ''}
       </article>`;
   }).join('');
 }
@@ -325,7 +325,9 @@ function etiquetasCurso(c) {
     c.emBreve && 'Em breve',
     c.tcc && 'TCC',
     c.estagio && 'Estágio obrigatório',
-    c.provaPolo && 'Prova presencial no polo',
+    // Todo curso de graduação tem ao menos uma prova presencial no polo;
+    // "Prova Polo: SIM" no Notion = provas frequentes, a cada 3 meses.
+    typeof c.provaPolo === 'boolean' && (c.provaPolo ? 'Provas no polo a cada 3 meses' : 'Prova presencial no polo'),
     c.megaPolo && 'Aula presencial no MegaPolo',
     aceitaTransferencia(c) && 'Aceita transferência',
   ].filter(Boolean);

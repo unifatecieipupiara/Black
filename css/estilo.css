@@ -168,6 +168,7 @@ p { margin: 0; }
 .card-obs { font-size: 0.82rem; color: var(--suave); }
 .cupom-desc { grid-column: 1 / -1; font-size: 0.78rem; color: #3b414a; line-height: 1.35; }
 .card-acoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+.card-matricula .card-acoes { margin-top: 0; }
 .sem-link { font-size: 0.85rem; color: var(--suave); font-style: italic; }
 
 .tipo-graduacao { --cor-tipo: var(--t-graduacao); }

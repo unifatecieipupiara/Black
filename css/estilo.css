@@ -251,47 +251,44 @@ p { margin: 0; }
   gap: 12px;
 }
 .card-curso {
-  background: var(--card);
+  background: #18181b;
+  color: #f4f4f5;
+  border: 1px solid #27272a;
   border-radius: var(--raio);
   box-shadow: var(--sombra);
-  padding: 14px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
-.etiqueta {
-  align-self: flex-start;
-  font-size: 0.72rem;
+.curso-titulo { font-size: 1.08rem; font-weight: 600; color: #fafafa; line-height: 1.3; }
+.curso-grau { font-weight: 800; }
+.pills { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.pills li {
+  font-size: 0.8rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--cor-tipo);
-  background: color-mix(in srgb, var(--cor-tipo) 10%, white);
-  padding: 2px 8px;
-  border-radius: 6px;
+  color: #fb923c;
+  background: rgba(251, 146, 60, 0.1);
+  border: 1px solid rgba(251, 146, 60, 0.55);
+  padding: 3px 11px;
+  border-radius: 999px;
 }
-.card-curso h4 { font-size: 1.05rem; }
-.etiquetas { display: flex; gap: 6px; flex-wrap: wrap; }
-.etiqueta-grupo { --cor-tipo: #374151; }
+.curso-sub { color: #a1a1aa; font-size: 0.9rem; }
+.preco { display: flex; flex-direction: column; margin: 2px 0; }
+.preco-de { color: #a1a1aa; font-size: 0.85rem; }
+.preco-por { font-size: 0.95rem; color: #e4e4e7; }
+.preco-por strong { font-size: 1.25rem; color: #4ade80; }
+.preco-mes { font-size: 0.85rem; color: #a1a1aa; font-weight: 500; }
+.preco-nota { font-size: 0.78rem; color: #a1a1aa; }
+.card-curso .card-acoes { padding-top: 6px; }
+.card-curso .btn { background: transparent; border-color: #3f3f46; color: #f4f4f5; }
+.card-curso .btn:hover { background: #27272a; border-color: #52525b; }
+.card-curso .btn-primario { background: var(--amarelo); border-color: var(--amarelo); color: #111; }
+.card-curso .btn-primario:hover { background: #ffd04d; border-color: #ffd04d; }
 .msg-aviso { background: #fee2e2; color: #991b1b; border-radius: 8px; padding: 8px 12px; font-size: 0.88rem; font-weight: 600; }
-.curso-sub { color: var(--suave); font-size: 0.88rem; }
-.preco { display: flex; flex-direction: column; margin: 4px 0; }
-.preco-de { color: var(--suave); font-size: 0.85rem; }
-.preco-por { font-size: 0.95rem; }
-.preco-por strong { font-size: 1.2rem; color: #0a7a3a; }
-.preco-mes { font-size: 0.85rem; color: var(--suave); font-weight: 500; }
-.preco-nota { font-size: 0.75rem; color: var(--suave); }
-.flags { list-style: none; margin: 2px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
-.flags li { font-size: 0.75rem; font-weight: 600; padding: 2px 7px; border-radius: 6px; }
-.flags li.sim { background: #e7f6ec; color: #166534; }
-.flags li.nao { background: #f1f2f4; color: #6b7280; }
 .aviso ul { margin: 4px 0 0; padding-left: 20px; }
-.flags li.m-destaque { background: #fff4d6; color: #7a4b00; }
-.flags li.m-lancamento { background: #e8eefc; color: #1e3a8a; }
-.flags li.m-embreve { background: #f3e8ff; color: #6b21a8; }
 .chips-area { margin: -4px 0 14px; }
 .chip-area { font-size: 0.8rem; padding: 4px 10px; }
-.card-curso .card-acoes { padding-top: 8px; }
 
 /* ---------- leads ---------- */
 

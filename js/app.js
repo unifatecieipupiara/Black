@@ -310,32 +310,40 @@ function renderFiltrosArea() {
     .join('');
 }
 
+// Nº de mensalidades: parcelas (Pós) ou duração × 12 ("3 anos e meio" → 42).
+function totalMensalidades(c) {
+  if (typeof c.parcelas === 'number') return c.parcelas;
+  const m = /^(\d+)\s+anos?(\s+e\s+meio)?/.exec(c.duracao || '');
+  return m ? Number(m[1]) * 12 + (m[2] ? 6 : 0) : null;
+}
+
+// Só o que o curso tem.
+function etiquetasCurso(c) {
+  return [
+    c.destaque && '★ Destaque',
+    c.lancamento && `Lançamento ${c.lancamento}`,
+    c.emBreve && 'Em breve',
+    c.tcc && 'TCC',
+    c.estagio && 'Estágio obrigatório',
+    c.provaPolo && 'Prova presencial no polo',
+    c.megaPolo && 'Aula presencial no MegaPolo',
+    aceitaTransferencia(c) && 'Aceita transferência',
+  ].filter(Boolean);
+}
+
 function cardCurso(c) {
   const tipo = tipoPorId[c.tipo];
-  const sub = [c.grau, c.duracao, c.cargaHoraria].filter(Boolean).join(' · ');
   const parcelado = typeof c.valorParcela === 'number';
-  const marcadores = [
-    c.destaque ? ['destaque', '★ Destaque'] : null,
-    c.lancamento ? ['lancamento', `Lançamento ${c.lancamento}`] : null,
-    c.emBreve ? ['embreve', 'Em breve'] : null,
-  ].filter(Boolean);
+  const mensalidades = totalMensalidades(c);
+  const sub = parcelado
+    ? [c.duracao, c.cargaHoraria].filter(Boolean).join(' · ')
+    : [c.duracao, mensalidades ? `${mensalidades} mensalidades` : ''].filter(Boolean).join(' · ');
+  const etiquetas = etiquetasCurso(c);
   const { normal, black } = precoCurso(c);
-  const grupo = grupoCurso(c);
-  const flags = [
-    ...(c.tipo === 'graduacao' ? [['Transferência', aceitaTransferencia(c)]] : []),
-    ['TCC', c.tcc],
-    ['Estágio', c.estagio],
-    ['Prova no polo', c.provaPolo],
-    ['Aula no MegaPolo', c.megaPolo],
-  ].filter(([, v]) => typeof v === 'boolean');
   return `
     <article class="card-curso">
-      <div class="etiquetas">
-        <span class="etiqueta tipo-${esc(c.tipo)}">${esc(tipo?.nome || c.tipo)}</span>
-        ${grupo ? `<span class="etiqueta etiqueta-grupo">${esc(grupo.nome)}</span>` : ''}
-        ${c.area ? `<span class="etiqueta etiqueta-grupo">${esc(c.area)}</span>` : ''}
-      </div>
-      <h4>${esc(c.nome)}</h4>
+      <h4 class="curso-titulo">${c.grau ? `<span class="curso-grau">${esc(c.grau)} em</span> ` : ''}${esc(c.nome)}</h4>
+      ${etiquetas.length ? `<ul class="pills">${etiquetas.map((e) => `<li>${esc(e)}</li>`).join('')}</ul>` : ''}
       ${sub ? `<p class="curso-sub">${esc(sub)}</p>` : ''}
       ${
         parcelado
@@ -349,8 +357,6 @@ function cardCurso(c) {
           ? `<p class="preco">${black !== null ? `<span class="preco-de">de <s>${reais(normal)}</s></span>` : ''}<span class="preco-por">${black !== null ? 'por ' : ''}<strong>${reais(black ?? normal)}</strong><span class="preco-mes">/mês</span></span>${black === null ? '<span class="preco-nota">valor normal</span>' : ''}</p>`
           : ''
       }
-      ${marcadores.length ? `<ul class="flags">${marcadores.map(([cls, txt]) => `<li class="m-${cls}">${esc(txt)}</li>`).join('')}</ul>` : ''}
-      ${flags.length ? `<ul class="flags">${flags.map(([nome, v]) => `<li class="${v ? 'sim' : 'nao'}">${v ? '✓' : '✗'} ${esc(nome)}</li>`).join('')}</ul>` : ''}
       <div class="card-acoes">
         <button type="button" class="btn btn-primario" data-acao="copiar-msg" data-curso="${esc(c.id)}">📋 Copiar mensagem</button>
         <button type="button" class="btn" data-acao="abrir-msg" data-curso="${esc(c.id)}">💬 Personalizar</button>

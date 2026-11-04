@@ -2,23 +2,35 @@
 
 Painel simples para a campanha de Black Friday (novembro):
 
-- **Links de matrícula e cupons** no topo (uso interno): Graduação, 2ª Graduação, Pós-Graduação e Transferência.
+- **Links de matrícula e vouchers** no topo (uso interno): Graduação, 2ª Graduação, Pós-Graduação e Transferência.
 - **Lista de cursos** com valores e **mensagem pronta** para copiar ou abrir direto no WhatsApp
-  (a mensagem não inclui link nem cupom).
+  (a mensagem não inclui link nem voucher).
 - **Leads** compartilhados entre a equipe: WhatsApp, status (*Entrar em contato*, *Em andamento*, *Sem retorno*,
   *Matriculado*, *Perdido*) e observação opcional (ex.: curso de interesse).
 - Exportação dos leads para planilha (CSV, abre no Excel / Google Planilhas).
 
 Não precisa instalar nada: é um site estático (HTML, CSS e JavaScript).
 
+## Acesso
+
+Tudo fica atrás do login com Google: sem entrar com um e-mail autorizado (lista em
+[`firestore.rules`](firestore.rules)), a página mostra só a tela "Acesso restrito".
+
+Cursos, valores, links, vouchers e mensagens ficam **criptografados** no repositório
+([`js/dados.enc.json`](js/dados.enc.json), AES-GCM 256). A chave que abre esse arquivo fica no
+Firestore, em `config/acesso` (campo `chave`), e só os e-mails autorizados conseguem lê-la.
+No primeiro acesso o painel pede a chave uma vez e a salva lá; depois ela não é mais pedida.
+Para consultar a chave: Firebase → Firestore Database → coleção `config` → documento `acesso`.
+
 ## Arquivos
 
 | Arquivo | Para que serve |
 |---|---|
-| `js/dados.js` | **Cursos, valores, links, cupons e mensagens prontas.** É o arquivo para editar. |
+| `js/dados.enc.json` | **Cursos, valores, links, vouchers e mensagens**, criptografados. |
+| `ferramentas/dados.mjs` | Abre (`abrir`) e criptografa de novo (`fechar`) os dados com a chave. |
 | `js/config.js` | Configuração do Firebase (onde os leads ficam guardados). |
-| `firestore.rules` | Regras de segurança: quais e-mails podem acessar os leads. |
-| `index.html`, `css/`, `js/app.js`, `js/armazenamento.js` | O sistema em si. |
+| `firestore.rules` | Regras de segurança: quais e-mails podem acessar o painel, os leads e a chave. |
+| `index.html`, `css/`, `js/app.js`, `js/armazenamento.js`, `js/cofre.js` | O sistema em si. |
 
 Enquanto o Firebase não estiver configurado, o sistema funciona em **modo demonstração**:
 os leads ficam salvos só no navegador de quem está usando.
@@ -50,10 +62,18 @@ No GitHub: repositório → **Settings** → **Pages** → em *Build and deploym
 *Deploy from a branch*, branch **`main`**, pasta **`/ (root)`** → *Save*.
 Em 1–2 minutos o site fica disponível em <https://unifatecieipupiara.github.io/Black/>.
 
-## Editar cursos, valores, cupons e mensagens
+## Editar cursos, valores, vouchers e mensagens
 
-Tudo fica em [`js/dados.js`](js/dados.js). Pelo próprio GitHub: abra o arquivo → ícone de lápis
-(*Edit*) → altere → *Commit changes*. O site atualiza sozinho em 1–2 minutos.
+Os dados ficam em `js/dados.js`, que **nunca vai para o GitHub** (está no `.gitignore`); no
+repositório só existe a versão criptografada. Para editar (precisa do Node.js e da chave):
+
+```bash
+CHAVE_DADOS='<chave>' node ferramentas/dados.mjs abrir     # cria js/dados.js
+# … edite js/dados.js …
+CHAVE_DADOS='<chave>' node ferramentas/dados.mjs fechar    # atualiza js/dados.enc.json
+```
+
+Depois faça commit só do `js/dados.enc.json`. O site atualiza sozinho em 1–2 minutos.
 
 - **Valores da Black Friday:** `GRUPOS_BLACK` (Grupo Base a Grupo 6, "de/por"). O grupo de cada
   curso é encontrado pela mensalidade normal. Para um valor específico de um curso, preencha a
@@ -64,9 +84,9 @@ Tudo fica em [`js/dados.js`](js/dados.js). Pelo próprio GitHub: abra o arquivo 
   lançamento / em breve / destaque / parcela diferente). Condição padrão em `POS_CONDICAO`
   (12× R$ 29,90) e matrícula no tipo "Pós-Graduação".
 
-Enquanto faltar algum link, cupom, desconto ou lista de cursos, o topo da página mostra um aviso
+Enquanto faltar algum link, voucher, desconto ou lista de cursos, o topo da página mostra um aviso
 amarelo dizendo o que ainda falta. Ele some sozinho quando tudo estiver preenchido.
 
-> **Atenção:** este repositório é público. Cursos, valores, links e cupons ficam visíveis para
-> quem abrir o repositório ou o site. Os **leads não ficam aqui**: eles são guardados no Firebase e
-> só aparecem para os e-mails autorizados.
+> **Atenção:** este repositório é público. O código fica visível, mas os dados da campanha só
+> aparecem criptografados e os **leads não ficam aqui**: eles são guardados no Firebase e só
+> aparecem para os e-mails autorizados.

@@ -78,6 +78,16 @@ async function criarFirebase(config) {
     excluir(id) {
       return F.deleteDoc(F.doc(colecao, id));
     },
+
+    // Chave que abre os dados da campanha (config/acesso → campo "chave").
+    async lerChave() {
+      const snap = await F.getDoc(F.doc(db, 'config', 'acesso'));
+      return snap.exists() ? snap.data().chave || null : null;
+    },
+
+    salvarChave(chave) {
+      return F.setDoc(F.doc(db, 'config', 'acesso'), { chave, atualizadoEm: F.serverTimestamp(), atualizadoPor: quem() });
+    },
   };
 }
 
@@ -130,6 +140,12 @@ function criarDemo() {
     },
     async excluir(id) {
       gravar(ler().filter((l) => l.id !== id));
+    },
+    async lerChave() {
+      return localStorage.getItem('bf-chave-demo');
+    },
+    async salvarChave(chave) {
+      localStorage.setItem('bf-chave-demo', chave);
     },
   };
 }

@@ -2,7 +2,8 @@ rules_version = '2';
 
 // Regras de segurança do Firestore.
 // Copie TODO este conteúdo para: Firebase → Firestore Database → Regras → Publicar.
-// Só os e-mails listados abaixo conseguem ver, criar, editar ou excluir leads.
+// Só os e-mails listados abaixo conseguem ver, criar, editar ou excluir leads
+// e ler a chave que abre os dados da campanha (config/acesso).
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -30,6 +31,11 @@ service cloud.firestore {
     match /leads/{leadId} {
       allow read, delete: if autorizado();
       allow create, update: if autorizado() && leadValido();
+    }
+
+    // Chave dos dados da campanha (cursos, valores, links e vouchers).
+    match /config/{docId} {
+      allow read, write: if autorizado();
     }
   }
 }

@@ -14,7 +14,7 @@
       <div class="marca">
         <span class="selo">BLACK<br>FRIDAY</span>
         <div>
-          <h1 id="tituloPolo">UniFatecie</h1>
+          <h1 id="tituloPolo">UniFatecie – Polo Ipupiara</h1>
           <p id="subtitulo"></p>
         </div>
       </div>
@@ -22,6 +22,14 @@
     </div>
   </header>
 
+  <!-- Tela de acesso: nada da campanha aparece antes do login -->
+  <main id="telaAcesso" class="tela-acesso">
+    <div class="acesso-card" id="acessoConteudo" aria-live="polite">
+      <p>Carregando…</p>
+    </div>
+  </main>
+
+  <div id="app" hidden>
   <div id="avisos"></div>
 
   <main class="conteudo">
@@ -61,6 +69,7 @@
   </main>
 
   <footer class="rodape" id="rodape"></footer>
+  </div>
 
   <!-- Cadastro / edição de lead -->
   <dialog id="dlgLead" aria-labelledby="dlgLeadTitulo">

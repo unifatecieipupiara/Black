@@ -1,6 +1,16 @@
-import { POLO, GRUPOS_BLACK, TIPOS_COM_GRUPOS, OBSERVACOES, TIPOS, CURSOS } from './dados.js';
 import { FIREBASE_CONFIG } from './config.js';
 import { criarArmazenamento } from './armazenamento.js';
+import { abrirDados, ChaveIncorreta, formatoDeChaveValido } from './cofre.js';
+
+// Dados da campanha: só existem depois do login (vêm criptografados — ver cofre.js).
+let POLO = {};
+let GRUPOS_BLACK = [];
+let TIPOS_COM_GRUPOS = [];
+let OBSERVACOES = {};
+let TIPOS = [];
+let tipoPorId = {};
+let cursos = [];
+let cursoPorId = {};
 
 // ---------------------------------------------------------------- base
 
@@ -12,7 +22,6 @@ const STATUS = [
   { id: 'perdido', nome: 'Perdido' },
 ];
 const statusPorId = Object.fromEntries(STATUS.map((s) => [s.id, s]));
-const tipoPorId = Object.fromEntries(TIPOS.map((t) => [t.id, t]));
 
 const $ = (seletor, raiz = document) => raiz.querySelector(seletor);
 const esc = (v) =>
@@ -24,9 +33,18 @@ const normalizar = (s) =>
     .toLowerCase();
 const slug = (s) => normalizar(s).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-const cursos = CURSOS.map((c) => ({ ...c, id: c.id || slug(`${c.tipo}-${c.nome}-${c.grau || ''}`) })).sort((a, b) =>
-  a.nome.localeCompare(b.nome, 'pt-BR'),
-);
+function aplicarDados(d) {
+  POLO = d.POLO || {};
+  GRUPOS_BLACK = d.GRUPOS_BLACK || [];
+  TIPOS_COM_GRUPOS = d.TIPOS_COM_GRUPOS || [];
+  OBSERVACOES = d.OBSERVACOES || {};
+  TIPOS = d.TIPOS || [];
+  tipoPorId = Object.fromEntries(TIPOS.map((t) => [t.id, t]));
+  cursos = (d.CURSOS || [])
+    .map((c) => ({ ...c, id: c.id || slug(`${c.tipo}-${c.nome}-${c.grau || ''}`) }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  cursoPorId = Object.fromEntries(cursos.map((c) => [c.id, c]));
+}
 
 // ---------------------------------------------------------------- valores
 
@@ -60,7 +78,6 @@ function detalhesCurso(c) {
 const textoMatricula = (m) => (/^R\$/.test(m) ? m : String(m).toLowerCase());
 
 const rotuloCurso = (c) => (c.grau ? `${c.nome} – ${c.grau}` : c.nome);
-const cursoPorId = Object.fromEntries(cursos.map((c) => [c.id, c]));
 
 const estado = {
   aba: 'cursos',
@@ -232,7 +249,7 @@ function renderUsuario() {
     el.innerHTML = `<span class="usuario-nome" title="${esc(usuario.email)}">${esc(primeiroNome(usuario.nome))}</span>
       <button type="button" class="btn btn-topo" data-acao="sair">Sair</button>`;
   } else {
-    el.innerHTML = '<button type="button" class="btn btn-topo" data-acao="entrar">Entrar com Google</button>';
+    el.innerHTML = '';
   }
 }
 
@@ -763,52 +780,157 @@ setInterval(() => {
 // ---------------------------------------------------------------- início
 
 let pararDeOuvir = null;
+let appAberto = false;
 
-async function iniciar() {
+// ---------------------------------------------------------------- tela de acesso
+
+function mostrarAcesso(tipo, detalhe = '') {
+  $('#app').hidden = true;
+  $('#telaAcesso').hidden = false;
+  const el = $('#acessoConteudo');
+  const email = estado.usuario?.email ? `<strong>${esc(estado.usuario.email)}</strong>` : 'Esta conta';
+  const telas = {
+    carregando: '<p>Carregando…</p>',
+    login: `
+      <div class="acesso-icone">🔒</div>
+      <h2>Acesso restrito</h2>
+      <p>Entre com a sua conta Google autorizada para ver cursos, valores, vouchers e leads.</p>
+      <button type="button" class="btn btn-primario" data-acao="entrar">Entrar com Google</button>`,
+    'sem-permissao': `
+      <div class="acesso-icone">⛔</div>
+      <h2>Sem permissão</h2>
+      <p>${email} não está autorizada a acessar este painel.</p>
+      <p class="pequeno">Se o e-mail já está na lista, confira se a versão mais recente das regras foi publicada no Firestore. Se não está, peça para a gestora incluir, ou entre com outra conta.</p>
+      <button type="button" class="btn" data-acao="sair">Entrar com outra conta</button>`,
+    chave: `
+      <div class="acesso-icone">🔑</div>
+      <h2>Chave de acesso</h2>
+      <p>No primeiro acesso, cole a chave que abre os dados da campanha. Ela fica salva e não será pedida de novo.</p>
+      ${detalhe ? `<p class="acesso-erro" role="alert">${esc(detalhe)}</p>` : ''}
+      <form id="formChave" autocomplete="off">
+        <label>Chave
+          <input name="chave" required spellcheck="false" autocapitalize="off" placeholder="Cole a chave aqui">
+        </label>
+        <button type="submit" class="btn btn-primario">Abrir painel</button>
+      </form>
+      <button type="button" class="btn" data-acao="sair">Sair</button>`,
+    erro: `
+      <div class="acesso-icone">⚠️</div>
+      <h2>Não foi possível abrir o painel</h2>
+      ${detalhe ? `<p class="acesso-erro" role="alert">${esc(detalhe)}</p>` : ''}
+      <button type="button" class="btn btn-primario" onclick="location.reload()">Tentar de novo</button>`,
+  };
+  el.innerHTML = telas[tipo] || telas.carregando;
+  el.querySelector('input')?.focus();
+}
+
+// Lê a chave (ou usa a digitada), abre os dados e mostra o painel.
+async function desbloquear(chaveDigitada) {
+  mostrarAcesso('carregando');
+  let chave = chaveDigitada;
+  if (!chave) {
+    try {
+      chave = await estado.store.lerChave();
+    } catch (err) {
+      console.error(err);
+      if (err.code === 'permission-denied') return mostrarAcesso('sem-permissao');
+      return mostrarAcesso('erro', err.message || String(err));
+    }
+    if (!chave) return mostrarAcesso('chave');
+  }
+
+  let dados;
+  try {
+    dados = await abrirDados(chave);
+  } catch (err) {
+    console.error(err);
+    if (err instanceof ChaveIncorreta) {
+      return mostrarAcesso('chave', chaveDigitada ? 'Essa chave não abre os dados. Confira e cole de novo.' : 'A chave salva não abre os dados. Cole a chave atual.');
+    }
+    return mostrarAcesso('erro', err.message || String(err));
+  }
+
+  if (chaveDigitada) {
+    try {
+      await estado.store.salvarChave(chave);
+    } catch (err) {
+      console.error(err);
+      if (err.code === 'permission-denied') return mostrarAcesso('sem-permissao');
+      return mostrarAcesso('erro', `A chave está certa, mas não foi possível salvá-la: ${err.message || err}`);
+    }
+  }
+
+  aplicarDados(dados);
+  abrirApp();
+}
+
+function abrirApp() {
+  appAberto = true;
+  $('#telaAcesso').hidden = true;
+  $('#app').hidden = false;
   renderTopo();
   renderAvisos();
   renderMatriculas();
   renderCursos();
   mudarAba(location.hash.slice(1) || 'cursos');
-  renderLeads();
 
+  estado.semPermissao = false;
+  estado.leads = [];
+  estado.carregandoLeads = true;
+  pararDeOuvir?.();
+  pararDeOuvir = estado.store.ouvirLeads(
+    (leads) => {
+      estado.leads = leads;
+      estado.carregandoLeads = false;
+      renderLeads();
+    },
+    (err) => {
+      console.error(err);
+      estado.carregandoLeads = false;
+      if (err.code === 'permission-denied') estado.semPermissao = true;
+      else estado.erroStore = err.message || String(err);
+      renderLeads();
+    },
+  );
+  renderLeads();
+}
+
+document.addEventListener('submit', (e) => {
+  if (e.target.id !== 'formChave') return;
+  e.preventDefault();
+  const chave = e.target.chave.value.trim();
+  if (!formatoDeChaveValido(chave)) {
+    mostrarAcesso('chave', 'Isso não parece a chave de acesso. Copie e cole a chave inteira.');
+    return;
+  }
+  desbloquear(chave);
+});
+
+// ---------------------------------------------------------------- início
+
+async function iniciar() {
+  mostrarAcesso('carregando');
   try {
     estado.store = await criarArmazenamento(FIREBASE_CONFIG);
   } catch (err) {
     console.error(err);
-    estado.erroStore = err.message || String(err);
-    renderLeads();
+    mostrarAcesso('erro', `Não foi possível conectar: ${err.message || err}`);
     return;
   }
-  renderAvisos();
-  renderUsuario();
-  renderLeads();
 
   estado.store.aoMudarUsuario((usuario) => {
-    estado.usuario = usuario;
-    estado.semPermissao = false;
-    estado.leads = [];
-    estado.carregandoLeads = Boolean(usuario);
-    pararDeOuvir?.();
-    pararDeOuvir = null;
-    if (usuario) {
-      pararDeOuvir = estado.store.ouvirLeads(
-        (leads) => {
-          estado.leads = leads;
-          estado.carregandoLeads = false;
-          renderLeads();
-        },
-        (err) => {
-          console.error(err);
-          estado.carregandoLeads = false;
-          if (err.code === 'permission-denied') estado.semPermissao = true;
-          else estado.erroStore = err.message || String(err);
-          renderLeads();
-        },
-      );
+    // Saiu depois de abrir o painel: recarrega para limpar tudo da memória.
+    if (!usuario && appAberto) {
+      location.reload();
+      return;
     }
+    estado.usuario = usuario;
     renderUsuario();
-    renderLeads();
+    if (!usuario) {
+      mostrarAcesso('login');
+      return;
+    }
+    if (!appAberto) desbloquear();
   });
 }
 

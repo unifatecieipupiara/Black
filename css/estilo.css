@@ -76,6 +76,30 @@ p { margin: 0; }
 .usuario { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; }
 .usuario-nome { color: #e7e8ec; }
 
+/* ---------- tela de acesso ---------- */
+
+.tela-acesso { max-width: 1200px; margin: 0 auto; padding: 48px 16px; display: flex; justify-content: center; }
+.acesso-card {
+  background: var(--card);
+  border-radius: 16px;
+  box-shadow: var(--sombra);
+  padding: 28px 24px;
+  width: min(440px, 100%);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+}
+.acesso-card h2 { font-size: 1.25rem; }
+.acesso-card p { color: var(--suave); }
+.acesso-icone { font-size: 2.2rem; line-height: 1; }
+.acesso-card form { width: 100%; display: flex; flex-direction: column; gap: 10px; text-align: left; }
+.acesso-card label { font-size: 0.85rem; font-weight: 600; color: #3b414a; display: flex; flex-direction: column; gap: 4px; }
+.acesso-card input { font: inherit; font-family: ui-monospace, Menlo, Consolas, monospace; padding: 9px 10px; border-radius: 8px; border: 1px solid #cfd4da; width: 100%; }
+.acesso-erro { background: #fee2e2; color: #991b1b !important; border-radius: 8px; padding: 8px 12px; font-size: 0.88rem; font-weight: 600; width: 100%; }
+.acesso-card .btn { width: 100%; }
+
 /* ---------- avisos ---------- */
 
 #avisos { max-width: 1200px; margin: 0 auto; padding: 0 16px; }

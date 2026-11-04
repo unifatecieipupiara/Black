@@ -166,6 +166,7 @@ p { margin: 0; }
   overflow-wrap: anywhere;
 }
 .card-obs { font-size: 0.82rem; color: var(--suave); }
+.cupom-desc { grid-column: 1 / -1; font-size: 0.78rem; color: #3b414a; line-height: 1.35; }
 .card-acoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
 .sem-link { font-size: 0.85rem; color: var(--suave); font-style: italic; }
 

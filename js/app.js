@@ -191,7 +191,7 @@ function renderAvisos() {
   const avisos = [];
   const pendencias = [];
   const semLink = TIPOS.filter((t) => !t.link).map((t) => t.nome);
-  const semCupom = TIPOS.filter((t) => !t.cupom).map((t) => t.nome);
+  const semCupom = TIPOS.filter((t) => !(t.cupons || []).some((c) => c.codigo)).map((t) => t.nome);
   const semCursos = TIPOS.filter((t) => ['graduacao', 'segunda', 'pos'].includes(t.id) && !cursos.some((c) => c.tipo === t.id)).map(
     (t) => t.nome,
   );
@@ -241,11 +241,22 @@ function renderMatriculas() {
     return `
       <article class="card-matricula tipo-${esc(t.id)}">
         <h3>${esc(t.nome)}</h3>
+        ${
+          (t.cupons || []).filter((c) => c.codigo).length
+            ? t.cupons
+                .filter((c) => c.codigo)
+                .map(
+                  (c) => `
         <div class="cupom">
-          <span class="cupom-rotulo">Cupom</span>
-          <span class="cupom-codigo">${t.cupom ? esc(t.cupom) : '—'}</span>
-          ${t.cupom ? `<button type="button" class="btn btn-mini" data-acao="copiar-cupom" data-tipo="${esc(t.id)}" aria-label="Copiar cupom ${esc(t.nome)}">Copiar</button>` : ''}
-        </div>
+          <span class="cupom-rotulo">Voucher</span>
+          <span class="cupom-codigo">${esc(c.codigo)}</span>
+          <button type="button" class="btn btn-mini" data-acao="copiar-cupom" data-codigo="${esc(c.codigo)}" aria-label="Copiar voucher ${esc(c.codigo)}">Copiar</button>
+          ${c.descricao ? `<span class="cupom-desc">${esc(c.descricao)}</span>` : ''}
+        </div>`,
+                )
+                .join('')
+            : '<div class="cupom"><span class="cupom-rotulo">Voucher</span><span class="cupom-codigo">—</span></div>'
+        }
         ${t.matricula ? `<p class="card-obs">Matrícula: <strong>${esc(t.matricula)}</strong></p>` : ''}
         ${t.obs ? `<p class="card-obs">${esc(t.obs)}</p>` : ''}
         <div class="card-acoes">
@@ -634,7 +645,7 @@ async function executarAcao(acao, el) {
   const { store } = estado;
   switch (acao) {
     case 'copiar-cupom':
-      return copiar(tipoPorId[el.dataset.tipo].cupom, 'Cupom copiado!');
+      return copiar(el.dataset.codigo, 'Voucher copiado!');
     case 'filtro-tipo':
       estado.filtroTipo = el.dataset.tipo;
       estado.filtroArea = 'todas';

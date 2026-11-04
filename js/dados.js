@@ -106,24 +106,25 @@ export const OBSERVACOES = {
 //  nunca entram na mensagem enviada ao lead.
 //  "matricula" é o valor da matrícula que vai na mensagem.
 //  "extras" são outros links que aparecem no card, ao lado de "Acessar link".
+//  "cupons": um ou mais vouchers, cada um com o código e quando usar.
 // ---------------------------------------------------------------------
 
 export const TIPOS = [
   {
     id: 'graduacao',
     nome: 'Graduação',
-    link: '', // falta o link de matrícula da Graduação
-    cupom: '',
+    link: 'https://matriculasunifatecie.com.br/',
+    cupons: [{ codigo: 'TAXA1', descricao: 'Valor R$ 1,00' }],
     matricula: 'R$ 19,90',
     primeiraMensalidade: 'Dezembro',
-    obs: 'Use o cupom no momento da matrícula.',
+    obs: 'Use o voucher no momento da matrícula.',
     mensagem: MENSAGEM_PADRAO,
   },
   {
     id: 'segunda',
     nome: '2ª Graduação',
     link: 'https://segundagraduacao.fatecie.edu.br/inscription?origem=polo&polo=BwOyo2BF1ALSH3PNae9bLQ==',
-    cupom: '',
+    cupons: [{ codigo: 'TAXA1', descricao: 'Matrícula grátis' }],
     matricula: 'R$ 19,90',
     primeiraMensalidade: 'Dezembro',
     obs: 'Para quem já tem diploma de graduação.',
@@ -134,16 +135,23 @@ export const TIPOS = [
     nome: 'Pós-Graduação',
     link: 'https://matriculapos.fatecie.edu.br/inscription?origem=polo',
     extras: [{ rotulo: 'Catálogo e valores', url: 'https://repositorio-dec-unifatecie.dociletulip6.chatgpt.site/#catalogo' }],
-    cupom: '',
+    cupons: [
+      { codigo: '29TAXA1', descricao: 'Matrícula grátis · todos os cursos · novas matrículas' },
+      {
+        codigo: 'POS40POLO',
+        descricao:
+          'Matrícula grátis + 40% de desconto nas mensalidades · novas matrículas de alunos de 2ª Graduação que desejam iniciar uma Pós-Graduação',
+      },
+    ],
     matricula: 'R$ 29,90',
-    obs: 'Use o cupom no momento da matrícula.',
+    obs: 'Use o voucher no momento da matrícula.',
     mensagem: MENSAGEM_POS,
   },
   {
     id: 'transferencia',
     nome: 'Transferência',
     link: 'https://matriculasunifatecie.com.br/matricula-transferencia-externa-polos/',
-    cupom: '',
+    cupons: [{ codigo: 'TAXA1', descricao: 'Valor R$ 1,00' }],
     matricula: 'R$ 19,90',
     primeiraMensalidade: 'Dezembro',
     obs: 'Só para cursos dos grupos Base, 1, 2 e 3.',

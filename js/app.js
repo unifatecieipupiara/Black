@@ -56,6 +56,9 @@ function detalhesCurso(c) {
     .filter(Boolean);
 }
 
+// "Grátis" → "grátis" no meio da frase; valores em R$ ficam como estão.
+const textoMatricula = (m) => (/^R\$/.test(m) ? m : String(m).toLowerCase());
+
 const rotuloCurso = (c) => (c.grau ? `${c.nome} – ${c.grau}` : c.nome);
 const cursoPorId = Object.fromEntries(cursos.map((c) => [c.id, c]));
 
@@ -337,7 +340,7 @@ function cardCurso(c) {
       ${
         parcelado
           ? `<p class="preco"><span class="preco-por"><strong>${c.parcelas}× ${reais(c.valorParcela)}</strong></span>${
-              c.matricula || tipo?.matricula ? `<span class="preco-nota">+ matrícula ${esc(c.matricula || tipo.matricula)}</span>` : ''
+              c.matricula || tipo?.matricula ? `<span class="preco-nota">+ matrícula ${esc(textoMatricula(c.matricula || tipo.matricula))}</span>` : ''
             }</p>`
           : ''
       }

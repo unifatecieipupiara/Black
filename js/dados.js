@@ -115,7 +115,7 @@ export const TIPOS = [
     nome: 'Graduação',
     link: 'https://matriculasunifatecie.com.br/',
     cupons: [{ codigo: 'TAXA1', descricao: 'Valor R$ 1,00' }],
-    matricula: 'R$ 19,90',
+    matricula: 'R$ 1,00', // com o voucher TAXA1
     primeiraMensalidade: 'Dezembro',
     obs: 'Use o voucher no momento da matrícula.',
     mensagem: MENSAGEM_PADRAO,
@@ -125,7 +125,7 @@ export const TIPOS = [
     nome: '2ª Graduação',
     link: 'https://segundagraduacao.fatecie.edu.br/inscription?origem=polo&polo=BwOyo2BF1ALSH3PNae9bLQ==',
     cupons: [{ codigo: 'TAXA1', descricao: 'Matrícula grátis' }],
-    matricula: 'R$ 19,90',
+    matricula: 'Grátis', // com o voucher TAXA1
     primeiraMensalidade: 'Dezembro',
     obs: 'Para quem já tem diploma de graduação.',
     mensagem: MENSAGEM_PADRAO,
@@ -143,7 +143,7 @@ export const TIPOS = [
           'Matrícula grátis + 40% de desconto nas mensalidades · novas matrículas de alunos de 2ª Graduação que desejam iniciar uma Pós-Graduação',
       },
     ],
-    matricula: 'R$ 29,90',
+    matricula: 'Grátis', // com o voucher 29TAXA1 ou POS40POLO
     obs: 'Use o voucher no momento da matrícula.',
     mensagem: MENSAGEM_POS,
   },
@@ -152,7 +152,7 @@ export const TIPOS = [
     nome: 'Transferência',
     link: 'https://matriculasunifatecie.com.br/matricula-transferencia-externa-polos/',
     cupons: [{ codigo: 'TAXA1', descricao: 'Valor R$ 1,00' }],
-    matricula: 'R$ 19,90',
+    matricula: 'R$ 1,00', // com o voucher TAXA1
     primeiraMensalidade: 'Dezembro',
     obs: 'Só para cursos dos grupos Base, 1, 2 e 3.',
     mensagem: MENSAGEM_PADRAO,

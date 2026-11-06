@@ -176,6 +176,7 @@ function montarMensagem({ cursoId, ingresso }) {
     curso: curso.nome || '',
     grau: curso.grau || '',
     duracao: curso.duracao || '',
+    modalidade: curso.modalidade || 'EAD',
     cargaHoraria: curso.cargaHoraria || '',
     area: curso.area || '',
     lancamento: curso.lancamento || '',

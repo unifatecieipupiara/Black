@@ -141,9 +141,20 @@ function numeroWhats(t) {
   return d;
 }
 
-function linkWhats(telefone, texto) {
-  return `https://wa.me/${numeroWhats(telefone)}?text=${encodeURIComponent(texto)}`;
+// No Android, os links abrem direto o WhatsApp Business (com.whatsapp.w4b).
+// Se o Business não estiver instalado, cai no link normal (wa.me).
+const NO_ANDROID = /Android/i.test(navigator.userAgent);
+
+function linkWhats(telefone, texto = '') {
+  const numero = numeroWhats(telefone);
+  const normal = `https://wa.me/${numero}${texto ? `?text=${encodeURIComponent(texto)}` : ''}`;
+  if (!NO_ANDROID) return normal;
+  const params = [numero ? `phone=${numero}` : '', texto ? `text=${encodeURIComponent(texto)}` : ''].filter(Boolean).join('&');
+  return `intent://send?${params}#Intent;scheme=whatsapp;package=com.whatsapp.w4b;S.browser_fallback_url=${encodeURIComponent(normal)};end`;
 }
+
+// No Android o link abre o app direto; nova aba só deixaria uma aba em branco.
+const alvoWhats = NO_ANDROID ? '' : ' target="_blank" rel="noopener"';
 
 function tempoRelativo(ms) {
   if (!ms) return '';
@@ -503,7 +514,7 @@ function renderListaLeads() {
           <div class="lead-cabeca">
             <h4>${
               l.telefone
-                ? `<a href="https://wa.me/${numeroWhats(l.telefone)}" target="_blank" rel="noopener" title="Abrir conversa no WhatsApp">📱 ${esc(l.telefone)}</a>`
+                ? `<a href="${esc(linkWhats(l.telefone))}"${alvoWhats} title="Abrir conversa no WhatsApp">📱 ${esc(l.telefone)}</a>`
                 : 'Sem número'
             }</h4>
             <select class="status-select st-${esc(l.status)}" data-acao="mudar-status" data-id="${esc(l.id)}" aria-label="Status do lead ${esc(rotulo)}">
@@ -617,7 +628,12 @@ function atualizarMensagem() {
 }
 
 function atualizarLinkWhats() {
-  $('#msgWhats').href = linkWhats($('#msgTelefone').value, $('#msgTexto').value);
+  const botao = $('#msgWhats');
+  botao.href = linkWhats($('#msgTelefone').value, $('#msgTexto').value);
+  if (NO_ANDROID) {
+    botao.removeAttribute('target');
+    botao.textContent = '💬 Abrir no WhatsApp Business';
+  }
 }
 
 // ---------------------------------------------------------------- exportar

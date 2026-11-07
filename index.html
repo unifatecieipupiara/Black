@@ -108,14 +108,15 @@
         <input id="msgTelefone" type="tel" inputmode="tel" placeholder="Opcional — para abrir a conversa direto" autocomplete="off">
       </label>
       <p id="msgAviso" class="msg-aviso" role="alert" hidden></p>
+      <p id="msgDica" class="msg-dica" hidden></p>
       <label>Texto (pode editar antes de enviar)
         <textarea id="msgTexto" rows="14" placeholder="Escolha o curso acima para montar a mensagem."></textarea>
       </label>
       <div class="form-botoes">
         <button type="button" class="btn" data-acao="fechar-dialogo">Fechar</button>
         <button type="button" class="btn" data-acao="msg-copiar">📋 Copiar</button>
-        <button type="button" id="msgCompartilhar" class="btn btn-primario" data-acao="msg-compartilhar" hidden>📤 Enviar com imagem</button>
         <a id="msgWhats" class="btn btn-whats" target="_blank" rel="noopener">💬 Abrir no WhatsApp</a>
+        <button type="button" id="msgCompartilhar" class="btn btn-primario" data-acao="msg-compartilhar" hidden>📤 Enviar com imagem</button>
       </div>
     </div>
   </dialog>

@@ -456,14 +456,15 @@ function podeCompartilharImagem() {
 
 const podeCopiarImagem = () => typeof ClipboardItem !== 'undefined' && Boolean(navigator.clipboard?.write);
 
-async function compartilharCampanha() {
+// comTexto = false: só a imagem (o texto já foi enviado no passo 1 da tela de mensagem).
+async function compartilharCampanha(comTexto = true) {
   const texto = mensagemCampanha();
   if (!podeCompartilharImagem()) {
     await copiar(texto, 'Texto copiado! Copie também a imagem e cole os dois no WhatsApp.');
     return;
   }
   try {
-    await navigator.share({ files: [estado.arquivoCampanha], text: texto });
+    await navigator.share(comTexto ? { files: [estado.arquivoCampanha], text: texto } : { files: [estado.arquivoCampanha] });
   } catch (err) {
     if (err.name !== 'AbortError') toast(`Não foi possível compartilhar: ${err.message || err}`, 'erro');
   }
@@ -513,7 +514,7 @@ function renderCampanha() {
         </div>
         <p class="campanha-dica">${
           compartilhar
-            ? 'Em “Enviar com imagem”, escolha o WhatsApp Business e o contato: a imagem vai com o texto na legenda.'
+            ? 'Em “Enviar com imagem”, escolha o WhatsApp Business e a conversa (busque pelo nome ou número): a imagem vai com o texto na legenda. Para um lead novo, use “Personalizar”.'
             : 'No computador: copie a imagem e cole na conversa do WhatsApp (Ctrl+V); depois copie o texto e cole na legenda.'
         }</p>
       </div>
@@ -731,18 +732,29 @@ function atualizarMensagem() {
   aviso.textContent = textoAviso ? `⚠️ ${textoAviso}` : '';
   aviso.hidden = !textoAviso;
   const ehCampanha = $('#msgCurso').value === ID_CAMPANHA;
-  $('#msgCompartilhar').hidden = !(ehCampanha && podeCompartilharImagem());
+  const doisPassos = ehCampanha && podeCompartilharImagem();
+  const compartilhar = $('#msgCompartilhar');
+  compartilhar.hidden = !doisPassos;
+  compartilhar.textContent = '2️⃣ Enviar imagem';
   $('#msgIngresso').disabled = ehCampanha;
+  $('#msgIngresso').closest('label').hidden = ehCampanha;
+  $('#msgTexto').rows = ehCampanha ? 4 : 14;
+  // O WhatsApp não aceita, vindo de um site, imagem + número ao mesmo tempo.
+  const dica = $('#msgDica');
+  dica.hidden = !ehCampanha;
+  dica.textContent = doisPassos
+    ? 'O WhatsApp não deixa um site mandar imagem direto para um número. Faça em 2 passos: 1️⃣ toque em "Enviar texto", envie e volte aqui; 2️⃣ toque em "Enviar imagem" e escolha a conversa do lead, que vai estar em primeiro na lista.'
+    : 'O WhatsApp não deixa um site mandar imagem direto para um número. Abra a conversa pelo botão do WhatsApp e depois cole a imagem (botão "Copiar imagem" no card da campanha).';
   atualizarLinkWhats();
 }
 
 function atualizarLinkWhats() {
   const botao = $('#msgWhats');
   botao.href = linkWhats($('#msgTelefone').value, $('#msgTexto').value);
-  if (NO_ANDROID) {
-    botao.removeAttribute('target');
-    botao.textContent = '💬 Abrir no WhatsApp Business';
-  }
+  if (NO_ANDROID) botao.removeAttribute('target');
+  const app = NO_ANDROID ? 'WhatsApp Business' : 'WhatsApp';
+  const doisPassos = $('#msgCurso').value === ID_CAMPANHA && podeCompartilharImagem();
+  botao.textContent = doisPassos ? `1️⃣ Enviar texto (${app})` : `💬 Abrir no ${app}`;
 }
 
 // ---------------------------------------------------------------- exportar
@@ -818,7 +830,7 @@ async function executarAcao(acao, el) {
     case 'campanha-personalizar':
       return abrirMensagem({ cursoId: ID_CAMPANHA });
     case 'msg-compartilhar':
-      return compartilharCampanha();
+      return compartilharCampanha(false);
     case 'abrir-msg':
       return abrirMensagem({ cursoId: el.dataset.curso });
     case 'msg-copiar':

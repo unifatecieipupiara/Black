@@ -7,6 +7,8 @@ let POLO = {};
 let GRUPOS_BLACK = [];
 let TIPOS_COM_GRUPOS = [];
 let OBSERVACOES = {};
+let CAMPANHA = null;
+const ID_CAMPANHA = '__campanha';
 let TIPOS = [];
 let tipoPorId = {};
 let cursos = [];
@@ -38,6 +40,7 @@ function aplicarDados(d) {
   GRUPOS_BLACK = d.GRUPOS_BLACK || [];
   TIPOS_COM_GRUPOS = d.TIPOS_COM_GRUPOS || [];
   OBSERVACOES = d.OBSERVACOES || {};
+  CAMPANHA = d.CAMPANHA || null;
   TIPOS = d.TIPOS || [];
   tipoPorId = Object.fromEntries(TIPOS.map((t) => [t.id, t]));
   cursos = (d.CURSOS || [])
@@ -172,7 +175,15 @@ const primeiroNome = (s) => String(s ?? '').trim().split(/\s+/)[0] || '';
 
 // ---------------------------------------------------------------- mensagens
 
+// Mensagem geral da campanha (vai com a imagem e o link de todos os cursos).
+function mensagemCampanha() {
+  if (!CAMPANHA) return '';
+  const valores = { polo: POLO.nome || '', campanha: POLO.campanha || '', link: CAMPANHA.link || '' };
+  return CAMPANHA.mensagem.replace(/\{(\w+)\}/g, (m, k) => (k in valores ? valores[k] : m)).trim();
+}
+
 function montarMensagem({ cursoId, ingresso }) {
+  if (cursoId === ID_CAMPANHA) return mensagemCampanha();
   const curso = cursoPorId[cursoId];
   if (!curso) return '';
   const tipo = tipoPorId[ingresso] || tipoPorId[curso.tipo];
@@ -417,6 +428,98 @@ function renderCursos() {
   }).join('');
 }
 
+// ---------------------------------------------------------------- campanha (imagem + texto)
+
+// A imagem é baixada uma vez ao abrir o painel, para o compartilhamento ser imediato.
+async function prepararImagemCampanha() {
+  if (!CAMPANHA?.imagem) return;
+  try {
+    const resposta = await fetch(CAMPANHA.imagem);
+    if (!resposta.ok) throw new Error(`erro ${resposta.status}`);
+    const blob = await resposta.blob();
+    const nome = CAMPANHA.imagem.split('/').pop() || 'campanha.jpg';
+    estado.arquivoCampanha = new File([blob], nome, { type: blob.type || 'image/jpeg' });
+  } catch (err) {
+    console.error('Imagem da campanha:', err);
+  }
+  renderCampanha();
+}
+
+function podeCompartilharImagem() {
+  const arq = estado.arquivoCampanha;
+  try {
+    return Boolean(arq && navigator.canShare && navigator.canShare({ files: [arq], text: 'x' }));
+  } catch {
+    return false;
+  }
+}
+
+const podeCopiarImagem = () => typeof ClipboardItem !== 'undefined' && Boolean(navigator.clipboard?.write);
+
+async function compartilharCampanha() {
+  const texto = mensagemCampanha();
+  if (!podeCompartilharImagem()) {
+    await copiar(texto, 'Texto copiado! Copie também a imagem e cole os dois no WhatsApp.');
+    return;
+  }
+  try {
+    await navigator.share({ files: [estado.arquivoCampanha], text: texto });
+  } catch (err) {
+    if (err.name !== 'AbortError') toast(`Não foi possível compartilhar: ${err.message || err}`, 'erro');
+  }
+}
+
+// A área de transferência só aceita PNG: converte a imagem antes de copiar.
+async function pngDaCampanha() {
+  const arq = estado.arquivoCampanha || (await (await fetch(CAMPANHA.imagem)).blob());
+  const bmp = await createImageBitmap(arq);
+  const canvas = document.createElement('canvas');
+  canvas.width = bmp.width;
+  canvas.height = bmp.height;
+  canvas.getContext('2d').drawImage(bmp, 0, 0);
+  return new Promise((ok, erro) => canvas.toBlob((b) => (b ? ok(b) : erro(new Error('falha ao gerar PNG'))), 'image/png'));
+}
+
+async function copiarImagemCampanha() {
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngDaCampanha() })]);
+    toast('Imagem copiada! Cole na conversa do WhatsApp (Ctrl+V).');
+  } catch (err) {
+    console.error(err);
+    toast('Não foi possível copiar a imagem. Use "Baixar imagem".', 'erro');
+  }
+}
+
+function renderCampanha() {
+  const el = $('#campanha');
+  if (!el) return;
+  if (!CAMPANHA) {
+    el.innerHTML = '';
+    return;
+  }
+  const compartilhar = podeCompartilharImagem();
+  el.innerHTML = `
+    <article class="card-campanha">
+      <img class="campanha-img" src="${esc(CAMPANHA.imagem)}" alt="Arte da campanha Black Friday" loading="lazy">
+      <div class="campanha-corpo">
+        <h3 class="curso-titulo">📣 ${esc(CAMPANHA.titulo)}</h3>
+        <p class="curso-sub">Imagem + texto com o link para todos os cursos. Ideal para o primeiro contato.</p>
+        <div class="card-acoes">
+          ${compartilhar ? '<button type="button" class="btn btn-primario" data-acao="campanha-enviar">📤 Enviar com imagem</button>' : ''}
+          <button type="button" class="btn ${compartilhar ? '' : 'btn-primario'}" data-acao="campanha-copiar-texto">📋 Copiar texto</button>
+          ${podeCopiarImagem() ? '<button type="button" class="btn" data-acao="campanha-copiar-imagem">🖼️ Copiar imagem</button>' : ''}
+          <button type="button" class="btn" data-acao="campanha-personalizar">💬 Personalizar</button>
+          <a class="btn" href="${esc(CAMPANHA.imagem)}" download>⬇ Baixar imagem</a>
+        </div>
+        <p class="campanha-dica">${
+          compartilhar
+            ? 'Em “Enviar com imagem”, escolha o WhatsApp Business e o contato: a imagem vai com o texto na legenda.'
+            : 'No computador: copie a imagem e cole na conversa do WhatsApp (Ctrl+V); depois copie o texto e cole na legenda.'
+        }</p>
+      </div>
+    </article>`;
+}
+
 // ---------------------------------------------------------------- leads
 
 function renderContador() {
@@ -544,7 +647,10 @@ function opcoesCursos(selecionado, rotuloVazio) {
       .map((c) => `<option value="${esc(c.id)}" ${c.id === selecionado ? 'selected' : ''}>${esc(rotuloCurso(c))}</option>`)
       .join('')}</optgroup>`;
   }).join('');
-  return `<option value="">${esc(rotuloVazio)}</option>${grupos}`;
+  const campanha = CAMPANHA
+    ? `<option value="${ID_CAMPANHA}" ${selecionado === ID_CAMPANHA ? 'selected' : ''}>📣 ${esc(CAMPANHA.titulo)} (com imagem)</option>`
+    : '';
+  return `<option value="">${esc(rotuloVazio)}</option>${campanha}${grupos}`;
 }
 
 function opcoesTipos(selecionado, rotuloVazio) {
@@ -624,6 +730,9 @@ function atualizarMensagem() {
   }
   aviso.textContent = textoAviso ? `⚠️ ${textoAviso}` : '';
   aviso.hidden = !textoAviso;
+  const ehCampanha = $('#msgCurso').value === ID_CAMPANHA;
+  $('#msgCompartilhar').hidden = !(ehCampanha && podeCompartilharImagem());
+  $('#msgIngresso').disabled = ehCampanha;
   atualizarLinkWhats();
 }
 
@@ -700,6 +809,16 @@ async function executarAcao(acao, el) {
       return renderCursos();
     case 'copiar-msg':
       return copiar(montarMensagem({ cursoId: el.dataset.curso }), 'Mensagem copiada!');
+    case 'campanha-enviar':
+      return compartilharCampanha();
+    case 'campanha-copiar-texto':
+      return copiar(mensagemCampanha(), 'Texto da campanha copiado!');
+    case 'campanha-copiar-imagem':
+      return copiarImagemCampanha();
+    case 'campanha-personalizar':
+      return abrirMensagem({ cursoId: ID_CAMPANHA });
+    case 'msg-compartilhar':
+      return compartilharCampanha();
     case 'abrir-msg':
       return abrirMensagem({ cursoId: el.dataset.curso });
     case 'msg-copiar':
@@ -889,6 +1008,8 @@ function abrirApp() {
   renderAvisos();
   renderMatriculas();
   renderCursos();
+  renderCampanha();
+  prepararImagemCampanha();
   mudarAba(location.hash.slice(1) || 'cursos');
 
   estado.semPermissao = false;

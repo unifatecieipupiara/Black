@@ -44,6 +44,7 @@
     </nav>
 
     <section id="abaCursos" class="aba" role="tabpanel" aria-labelledby="tab-cursos">
+      <div id="campanha"></div>
       <div class="barra">
         <input type="search" id="buscaCurso" class="campo-busca" placeholder="Buscar curso…" aria-label="Buscar curso">
         <div id="filtrosTipo" class="chips" role="group" aria-label="Filtrar por tipo"></div>
@@ -113,6 +114,7 @@
       <div class="form-botoes">
         <button type="button" class="btn" data-acao="fechar-dialogo">Fechar</button>
         <button type="button" class="btn" data-acao="msg-copiar">📋 Copiar</button>
+        <button type="button" id="msgCompartilhar" class="btn btn-primario" data-acao="msg-compartilhar" hidden>📤 Enviar com imagem</button>
         <a id="msgWhats" class="btn btn-whats" target="_blank" rel="noopener">💬 Abrir no WhatsApp</a>
       </div>
     </div>

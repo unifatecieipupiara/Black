@@ -73,7 +73,11 @@ function aceitaTransferencia(c) {
 function detalhesCurso(c) {
   return ['provaPolo', 'estagio', 'tcc', 'megaPolo']
     .filter((campo) => typeof c[campo] === 'boolean')
-    .map((campo) => OBSERVACOES[campo]?.[c[campo] ? 'sim' : 'nao'] || '')
+    .map((campo) => {
+      const chave = c[campo] ? 'sim' : 'nao';
+      // Texto próprio do curso (ex.: estágio flexível na 2ª Licenciatura) ou o padrão.
+      return c.observacoes?.[campo]?.[chave] ?? OBSERVACOES[campo]?.[chave] ?? '';
+    })
     .filter(Boolean);
 }
 
@@ -364,7 +368,7 @@ function etiquetasCurso(c) {
     c.lancamento && `Lançamento ${c.lancamento}`,
     c.emBreve && 'Em breve',
     c.tcc && 'TCC',
-    c.estagio && 'Estágio obrigatório',
+    c.estagio && (c.estagioFlexivel ? 'Estágio flexível' : 'Estágio obrigatório'),
     // Todo curso de graduação tem ao menos uma prova presencial no polo;
     // "Prova Polo: SIM" no Notion = provas frequentes, a cada 3 meses.
     typeof c.provaPolo === 'boolean' && (c.provaPolo ? 'Provas no polo a cada 3 meses' : 'Prova presencial no polo'),

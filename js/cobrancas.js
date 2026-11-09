@@ -216,7 +216,11 @@ function cardAluno(a) {
         <span class="cob-polo polo-${esc(poloDe(a).id)}">📍 ${esc(poloDe(a).curto)}</span>
         <span class="cob-tipo tipo-${esc(tipoDe(a).id)}">🎓 ${esc(tipoDe(a).curto)}</span>
       </div>
-      ${a.telefone ? `<a class="cob-tel" href="${esc(linkWhats(a.telefone))}"${alvoWhats}>📱 ${esc(a.telefone)}</a>` : ''}
+      ${
+        a.telefone
+          ? `<a class="cob-tel" href="${esc(linkWhats(a.telefone))}"${alvoWhats}>📱 ${esc(a.telefone)}</a>`
+          : `<button type="button" class="cob-sem-tel" data-acao="editar" data-id="${esc(a.id)}">📱 Adicionar WhatsApp</button>`
+      }
       ${a.obs ? `<p class="cob-obs">${esc(a.obs)}</p>` : ''}
       ${a.atualizadoEm ? `<p class="cob-meta">Atualizado ${esc(tempoRelativo(a.atualizadoEm))}</p>` : ''}
       <div class="cob-acoes">
@@ -336,7 +340,7 @@ async function salvarAluno(e) {
     return f.qtd.focus();
   }
   const id = estado.editandoId;
-  const repetido = estado.alunos.find((a) => a.id !== id && numeroWhats(a.telefone) === numeroWhats(telefone));
+  const repetido = estado.alunos.find((a) => a.id !== id && numeroWhats(telefone) && numeroWhats(a.telefone) === numeroWhats(telefone));
   if (repetido && !confirm(`Esse WhatsApp já está cadastrado para ${repetido.nome}. Salvar mesmo assim?`)) return;
   const polo = poloPorId[f.polo.value] ? f.polo.value : POLOS[0].id;
   try {
@@ -366,6 +370,154 @@ async function excluirAluno() {
     toast('Aluno excluído');
   } catch (err) {
     toast(`Erro ao excluir: ${err.message || err}`, 'erro');
+  }
+}
+
+// ---------------------------------------------------------------- importar planilha
+// Cada linha da planilha é uma mensalidade em atraso: "Status | Vencimento | Valor | Aluno | Filial".
+// As linhas são agrupadas por aluno; a quantidade de linhas vira "mensalidades em atraso".
+
+const reais = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).replace(/\s/g, ' ');
+let previaImportacao = [];
+
+function poloDaFilial(filial) {
+  const f = normalizar(filial);
+  return f.includes('barra') ? 'barra-do-mendes' : 'ipupiara';
+}
+
+function interpretarPlanilha(texto) {
+  const grupos = new Map();
+  let ignoradas = 0;
+  for (const bruta of String(texto).split(/\r?\n/)) {
+    const linha = bruta.trim();
+    if (!linha) continue;
+    const celulas = (linha.includes('\t') ? linha.split('\t') : linha.split(/\s{2,}/)).map((c) => c.trim());
+    const iData = celulas.findIndex((c) => /^\d{2}\/\d{2}\/\d{4}$/.test(c));
+    const iValor = celulas.findIndex((c) => /^R\$\s*[\d.]+,\d{2}$/.test(c));
+    const nome = iValor >= 0 ? celulas[iValor + 1] : '';
+    if (iData < 0 || iValor < 0 || !nome || /\d/.test(nome)) {
+      ignoradas += 1; // cabeçalho ou linha fora do formato
+      continue;
+    }
+    const valor = Number(celulas[iValor].replace(/[^\d,]/g, '').replace(',', '.'));
+    const [d, m, a] = celulas[iData].split('/').map(Number);
+    const chave = normalizar(nome).replace(/\s+/g, ' ');
+    if (!grupos.has(chave)) grupos.set(chave, { nome: nome.replace(/\s+/g, ' '), polo: poloDaFilial(celulas[iValor + 2] || ''), vencimentos: [], total: 0 });
+    const g = grupos.get(chave);
+    g.vencimentos.push({ texto: celulas[iData], ordem: a * 10000 + m * 100 + d });
+    g.total += valor;
+  }
+  const alunos = [...grupos.values()].map((g) => {
+    g.vencimentos.sort((x, y) => x.ordem - y.ordem);
+    const qtd = g.vencimentos.length;
+    const periodo = qtd === 1 ? g.vencimentos[0].texto : `${g.vencimentos[0].texto} a ${g.vencimentos[qtd - 1].texto}`;
+    // Sugestão: mensalidades de R$ 29,90 costumam ser de Pós-Graduação (confira na prévia).
+    const sugerePos = Math.abs(g.total / qtd - 29.9) < 0.005;
+    const existente = estado.alunos.find((a) => normalizar(a.nome).replace(/\s+/g, ' ') === normalizar(g.nome).replace(/\s+/g, ' '));
+    return {
+      nome: g.nome,
+      polo: g.polo,
+      qtd,
+      total: Math.round(g.total * 100) / 100,
+      periodo,
+      tipo: sugerePos ? 'pos' : 'graduacao',
+      sugerePos,
+      existente: Boolean(existente),
+      incluir: !existente,
+    };
+  });
+  alunos.sort((x, y) => x.nome.localeCompare(y.nome, 'pt-BR'));
+  return { alunos, ignoradas };
+}
+
+function abrirImportar() {
+  previaImportacao = [];
+  $('#impTexto').value = '';
+  $('#impPrevia').innerHTML = '';
+  $('#impConfirmar').disabled = true;
+  $('#impConfirmar').textContent = 'Importar';
+  $('#dlgImportar').showModal();
+  $('#impTexto').focus();
+}
+
+function lerPlanilha() {
+  const { alunos, ignoradas } = interpretarPlanilha($('#impTexto').value);
+  previaImportacao = alunos;
+  if (!alunos.length) {
+    $('#impPrevia').innerHTML = '<p class="acesso-erro">Não encontrei nenhuma linha no formato esperado (vencimento, valor em R$, nome do aluno e filial).</p>';
+    $('#impConfirmar').disabled = true;
+    return;
+  }
+  const linhas = alunos
+    .map(
+      (a, i) => `
+      <tr>
+        <td><input type="checkbox" data-imp="incluir" data-i="${i}" ${a.incluir ? 'checked' : ''} aria-label="Importar ${esc(a.nome)}"></td>
+        <td><strong>${esc(a.nome)}</strong>${a.existente ? '<br><span class="imp-aviso">já está no quadro</span>' : ''}</td>
+        <td class="num">${a.qtd}</td>
+        <td class="num">${reais(a.total)}</td>
+        <td>${esc(a.periodo)}</td>
+        <td><select data-imp="polo" data-i="${i}">${POLOS.map((p) => `<option value="${p.id}" ${p.id === a.polo ? 'selected' : ''}>${esc(p.curto)}</option>`).join('')}</select></td>
+        <td><select data-imp="tipo" data-i="${i}">${TIPOS.map((t) => `<option value="${t.id}" ${t.id === a.tipo ? 'selected' : ''}>${esc(t.curto)}</option>`).join('')}</select>${a.sugerePos ? '<br><span class="imp-aviso">sugestão pelo valor R$ 29,90 — confira</span>' : ''}</td>
+      </tr>`,
+    )
+    .join('');
+  const linhasPlanilha = alunos.reduce((s, a) => s + a.qtd, 0);
+  $('#impPrevia').innerHTML = `
+    <p class="pequeno"><strong>${alunos.length} alunos</strong> encontrados em ${linhasPlanilha} mensalidades${ignoradas ? ` (${ignoradas} linha(s) ignorada(s), como o cabeçalho)` : ''}. Confira o tipo de curso e desmarque quem não deve entrar. Todos entram em "Entrar em contato", sem WhatsApp.</p>
+    <div class="imp-tabela-caixa">
+      <table class="imp-tabela">
+        <thead><tr><th></th><th>Aluno</th><th>Mens.</th><th>Total</th><th>Vencimentos</th><th>Polo</th><th>Curso</th></tr></thead>
+        <tbody>${linhas}</tbody>
+      </table>
+    </div>`;
+  atualizarBotaoImportar();
+}
+
+function atualizarBotaoImportar() {
+  const n = previaImportacao.filter((a) => a.incluir).length;
+  $('#impConfirmar').disabled = !n;
+  $('#impConfirmar').textContent = n ? `Importar ${n} aluno${n > 1 ? 's' : ''}` : 'Importar';
+}
+
+document.addEventListener('change', (e) => {
+  const el = e.target.closest('[data-imp]');
+  if (!el) return;
+  const a = previaImportacao[Number(el.dataset.i)];
+  if (!a) return;
+  if (el.dataset.imp === 'incluir') a.incluir = el.checked;
+  else a[el.dataset.imp] = el.value;
+  atualizarBotaoImportar();
+});
+
+async function confirmarImportacao() {
+  const lista = previaImportacao.filter((a) => a.incluir);
+  if (!lista.length) return;
+  const botao = $('#impConfirmar');
+  botao.disabled = true;
+  let ok = 0;
+  try {
+    for (const a of lista) {
+      botao.textContent = `Importando ${ok + 1} de ${lista.length}…`;
+      await F.addDoc(colecao, {
+        nome: a.nome,
+        telefone: '',
+        qtd: a.qtd,
+        polo: a.polo,
+        tipo: a.tipo,
+        etapa: 'contatar',
+        obs: `Planilha: ${a.qtd} ${a.qtd === 1 ? 'mensalidade' : 'mensalidades'} (${a.periodo}) · total até o vencimento ${reais(a.total)}`,
+        criadoEm: F.serverTimestamp(),
+        atualizadoEm: F.serverTimestamp(),
+      });
+      ok += 1;
+    }
+    $('#dlgImportar').close();
+    toast(`${ok} aluno${ok > 1 ? 's' : ''} importado${ok > 1 ? 's' : ''}! Agora é só adicionar o WhatsApp.`);
+  } catch (err) {
+    console.error(err);
+    toast(`Importados ${ok} de ${lista.length}. Erro: ${err.message || err}`, 'erro');
+    atualizarBotaoImportar();
   }
 }
 
@@ -417,6 +569,12 @@ document.addEventListener('click', async (e) => {
       return A.signOut(auth);
     case 'novo':
       return abrirFormAluno(null);
+    case 'importar':
+      return abrirImportar();
+    case 'imp-ler':
+      return lerPlanilha();
+    case 'imp-confirmar':
+      return confirmarImportacao();
     case 'filtro-polo':
       estado.filtroPolo = el.dataset.polo;
       return renderQuadro();

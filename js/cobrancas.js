@@ -93,11 +93,11 @@ Muito obrigada pela confiança. Agora é seguir firme nos estudos, e conte sempr
   pos: {
     contatar: `Olá, {nome}! Tudo bem? 😊
 
-Aqui é da *{polo}*. Estou entrando em contato porque identifiquei {qtdTexto} na parte financeira da sua *pós-graduação*.
+Aqui é da *{polo}*. Estou entrando em contato porque identifiquei {qtdTexto} na sua *pós-graduação*.
 
 A boa notícia é que consigo *atualizar os boletos* e *retirar os juros de atraso*, para você regularizar de forma simples.
 
-Posso te passar os detalhes por aqui? 💛`,
+Tem interesse em realizar essa negociação hoje? 💛`,
 
     negociacao: `Oi, {nome}! 😊
 

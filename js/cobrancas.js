@@ -29,6 +29,14 @@ const POLOS = [
 const poloPorId = Object.fromEntries(POLOS.map((p) => [p.id, p]));
 const poloDe = (aluno) => poloPorId[aluno?.polo] || POLOS[0];
 const CHAVE_ULTIMO_POLO = 'cob-ultimo-polo';
+
+// Tipo de curso: define as mensagens. Alunos antigos (sem o campo) contam como Graduação.
+const TIPOS = [
+  { id: 'graduacao', curto: 'Graduação', nome: 'Graduação / 2ª Graduação (Feirão)' },
+  { id: 'pos', curto: 'Pós-Graduação', nome: 'Pós-Graduação' },
+];
+const tipoPorId = Object.fromEntries(TIPOS.map((t) => [t.id, t]));
+const tipoDe = (aluno) => tipoPorId[aluno?.tipo] || TIPOS[0];
 function ultimoPolo() {
   try {
     return poloPorId[localStorage.getItem(CHAVE_ULTIMO_POLO)] ? localStorage.getItem(CHAVE_ULTIMO_POLO) : POLOS[0].id;
@@ -54,27 +62,55 @@ const indiceEtapa = (id) => ETAPAS.findIndex((e) => e.id === id);
 //  {polo}      polo do aluno (Ipupiara ou Barra do Mendes)
 
 const MENSAGENS = {
-  contatar: `Olá, {nome}! Tudo bem? 😊
+  // Graduação e 2ª Graduação: convite para o Feirão da Negociação.
+  graduacao: {
+    contatar: `Olá, {nome}! Tudo bem? 😊
 
-Aqui é da *{polo}*. Estou passando para te contar uma novidade: começou o nosso *Feirão da Negociação*, com condições especiais para quem quer deixar tudo em dia e seguir tranquilo com os estudos.
+Aqui é da *{polo}*. Estou passando para te contar uma novidade: começou o nosso *Feirão da Negociação*, com condições especiais para quem quer deixar tudo em dia e seguir os estudos com tranquilidade.
 
 Separei uma condição especial para você e queria te apresentar. Posso te mandar os detalhes por aqui? 💛`,
 
-  negociacao: `Oi, {nome}! 😊
+    negociacao: `Oi, {nome}! 😊
 
 Sobre o *Feirão da Negociação*: consegui condições bem especiais para regularizar {mensalidades}, com *descontos* e opções de pagamento que cabem no seu bolso.
 
 Me conta o que fica melhor para você, pagamento à vista ou parcelado, que eu já preparo a proposta certinha. 😉`,
 
-  aguardando: `Oi, {nome}! Tudo certo? 😊
+    aguardando: `Oi, {nome}! Tudo certo? 😊
 
 Passando só para lembrar do pagamento que combinamos no *Feirão da Negociação*. Assim que fizer, me manda o comprovante por aqui que eu já confirmo e deixo tudo regularizado. ✅
 
 Se precisar de alguma ajuda, é só me chamar!`,
 
-  finalizado: `{nome}, pagamento confirmado! 🎉
+    finalizado: `{nome}, pagamento confirmado! 🎉
 
 Muito obrigada pela confiança. Agora é seguir firme nos estudos, e conte sempre com a gente aqui no *{polo}*! 💛`,
+  },
+
+  // Pós-Graduação: não participa do Feirão (sem falar em desconto).
+  pos: {
+    contatar: `Olá, {nome}! Tudo bem? 😊
+
+Aqui é da *{polo}*. Estou passando para conversar rapidinho sobre a sua *pós-graduação*. Quero te ajudar a deixar tudo organizado para você seguir com tranquilidade até o seu certificado. 🎓
+
+Posso te mandar os detalhes por aqui? 💛`,
+
+    negociacao: `Oi, {nome}! 😊
+
+Sobre a sua *pós-graduação*: para regularizar {mensalidades}, posso ver com você a melhor forma de pagamento, à vista ou parcelado, do jeito que ficar mais tranquilo para você.
+
+Me conta o que fica melhor que eu já preparo tudo certinho. 😉`,
+
+    aguardando: `Oi, {nome}! Tudo certo? 😊
+
+Passando só para lembrar do pagamento que combinamos da sua *pós-graduação*. Assim que fizer, me manda o comprovante por aqui que eu já confirmo e deixo tudo regularizado. ✅
+
+Se precisar de alguma ajuda, é só me chamar!`,
+
+    finalizado: `{nome}, pagamento confirmado! 🎉
+
+Muito obrigada! Sua pós-graduação está em dia. Agora é seguir firme até o certificado, e conte sempre com a gente aqui no *{polo}*! 💛`,
+  },
 };
 
 function textoMensalidades(qtd) {
@@ -90,7 +126,7 @@ function montarMensagem(aluno, etapa) {
     mensalidades: textoMensalidades(Number(aluno?.qtd) || 0),
     polo: poloDe(aluno).nome,
   };
-  return (MENSAGENS[etapa] || '').replace(/\{(\w+)\}/g, (m, k) => (k in valores ? valores[k] : m));
+  return (MENSAGENS[tipoDe(aluno).id]?.[etapa] || '').replace(/\{(\w+)\}/g, (m, k) => (k in valores ? valores[k] : m));
 }
 
 // ---------------------------------------------------------------- estado
@@ -100,6 +136,7 @@ const estado = {
   alunos: [],
   busca: '',
   filtroPolo: 'todos',
+  filtroTipo: 'todos',
   editandoId: null,
   msgAlunoId: null,
   carregando: true,
@@ -150,7 +187,12 @@ function renderUsuario() {
 
 // ---------------------------------------------------------------- quadro
 
-const doPolo = () => estado.alunos.filter((a) => estado.filtroPolo === 'todos' || poloDe(a).id === estado.filtroPolo);
+const doPolo = () =>
+  estado.alunos.filter(
+    (a) =>
+      (estado.filtroPolo === 'todos' || poloDe(a).id === estado.filtroPolo) &&
+      (estado.filtroTipo === 'todos' || tipoDe(a).id === estado.filtroTipo),
+  );
 
 function filtrados() {
   const q = normalizar(estado.busca.trim());
@@ -170,7 +212,10 @@ function cardAluno(a) {
         <h4>${esc(a.nome)}</h4>
         ${qtd ? `<span class="cob-qtd">${qtd} ${qtd === 1 ? 'mensalidade' : 'mensalidades'}</span>` : ''}
       </div>
-      <span class="cob-polo polo-${esc(poloDe(a).id)}">📍 ${esc(poloDe(a).curto)}</span>
+      <div class="cob-tags">
+        <span class="cob-polo polo-${esc(poloDe(a).id)}">📍 ${esc(poloDe(a).curto)}</span>
+        <span class="cob-tipo tipo-${esc(tipoDe(a).id)}">🎓 ${esc(tipoDe(a).curto)}</span>
+      </div>
       ${a.telefone ? `<a class="cob-tel" href="${esc(linkWhats(a.telefone))}"${alvoWhats}>📱 ${esc(a.telefone)}</a>` : ''}
       ${a.obs ? `<p class="cob-obs">${esc(a.obs)}</p>` : ''}
       ${a.atualizadoEm ? `<p class="cob-meta">Atualizado ${esc(tempoRelativo(a.atualizadoEm))}</p>` : ''}
@@ -184,14 +229,15 @@ function cardAluno(a) {
 }
 
 function renderPolos() {
-  const opcoes = [{ id: 'todos', curto: 'Todos os polos' }, ...POLOS];
-  $('#cobPolos').innerHTML = opcoes
-    .map((p) => {
-      const n = p.id === 'todos' ? estado.alunos.length : estado.alunos.filter((a) => poloDe(a).id === p.id).length;
-      const ativo = estado.filtroPolo === p.id;
-      return `<button type="button" class="chip ${ativo ? 'ativo' : ''}" data-acao="filtro-polo" data-polo="${p.id}" aria-pressed="${ativo}">${esc(p.curto)} (${n})</button>`;
-    })
+  const chip = (acao, chave, id, rotulo, n, ativo) =>
+    `<button type="button" class="chip ${ativo ? 'ativo' : ''}" data-acao="${acao}" data-${chave}="${id}" aria-pressed="${ativo}">${esc(rotulo)} (${n})</button>`;
+  const polos = [{ id: 'todos', curto: 'Todos os polos' }, ...POLOS]
+    .map((p) => chip('filtro-polo', 'polo', p.id, p.curto, p.id === 'todos' ? estado.alunos.length : estado.alunos.filter((a) => poloDe(a).id === p.id).length, estado.filtroPolo === p.id))
     .join('');
+  const tipos = [{ id: 'todos', curto: 'Todos os cursos' }, ...TIPOS]
+    .map((t) => chip('filtro-tipo', 'tipo', t.id, t.curto, t.id === 'todos' ? estado.alunos.length : estado.alunos.filter((a) => tipoDe(a).id === t.id).length, estado.filtroTipo === t.id))
+    .join('');
+  $('#cobPolos').innerHTML = `${polos}<span class="cob-sep" aria-hidden="true"></span>${tipos}`;
 }
 
 function renderResumo() {
@@ -263,6 +309,8 @@ function abrirFormAluno(aluno) {
   f.nome.value = aluno?.nome || '';
   f.telefone.value = aluno?.telefone || '';
   f.qtd.value = aluno?.qtd ?? 1;
+  const tipoAtual = aluno ? tipoDe(aluno).id : estado.filtroTipo !== 'todos' ? estado.filtroTipo : TIPOS[0].id;
+  f.tipo.innerHTML = TIPOS.map((t) => `<option value="${t.id}" ${t.id === tipoAtual ? 'selected' : ''}>${esc(t.nome)}</option>`).join('');
   const poloAtual = aluno ? poloDe(aluno).id : estado.filtroPolo !== 'todos' ? estado.filtroPolo : ultimoPolo();
   f.polo.innerHTML = POLOS.map((p) => `<option value="${p.id}" ${p.id === poloAtual ? 'selected' : ''}>${esc(p.curto.startsWith('Polo') ? p.curto : `Polo ${p.curto}`)}</option>`).join('');
   f.etapa.innerHTML = ETAPAS.map((e) => `<option value="${e.id}" ${e.id === (aluno?.etapa || 'contatar') ? 'selected' : ''}>${esc(e.nome)}</option>`).join('');
@@ -296,7 +344,8 @@ async function salvarAluno(e) {
   } catch {
     /* sem armazenamento local: tudo bem */
   }
-  const dados = { nome, telefone, qtd, polo, etapa: f.etapa.value, obs: f.obs.value.trim(), atualizadoEm: F.serverTimestamp() };
+  const tipo = tipoPorId[f.tipo.value] ? f.tipo.value : TIPOS[0].id;
+  const dados = { nome, telefone, qtd, polo, tipo, etapa: f.etapa.value, obs: f.obs.value.trim(), atualizadoEm: F.serverTimestamp() };
   $('#dlgAluno').close();
   try {
     if (id) await F.updateDoc(F.doc(colecao, id), dados);
@@ -324,7 +373,7 @@ async function excluirAluno() {
 
 function abrirMensagem(aluno) {
   estado.msgAlunoId = aluno.id;
-  $('#dlgMsgTitulo').textContent = `Mensagem para ${primeiroNome(aluno.nome)}`;
+  $('#dlgMsgTitulo').textContent = `Mensagem para ${primeiroNome(aluno.nome)} · ${tipoDe(aluno).curto}`;
   $('#msgEtapa').innerHTML = ETAPAS.map((e) => `<option value="${e.id}" ${e.id === aluno.etapa ? 'selected' : ''}>${esc(e.nome)}</option>`).join('');
   $('#msgTelefone').value = aluno.telefone || '';
   atualizarMensagem();
@@ -370,6 +419,9 @@ document.addEventListener('click', async (e) => {
       return abrirFormAluno(null);
     case 'filtro-polo':
       estado.filtroPolo = el.dataset.polo;
+      return renderQuadro();
+    case 'filtro-tipo':
+      estado.filtroTipo = el.dataset.tipo;
       return renderQuadro();
     case 'editar':
       return aluno && abrirFormAluno(aluno);

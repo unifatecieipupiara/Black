@@ -524,6 +524,9 @@ dialog::backdrop { background: rgba(10, 10, 14, 0.55); }
 .cob-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
 .cob-topo h4 { font-size: 0.98rem; }
 .cob-qtd { flex-shrink: 0; font-size: 0.75rem; font-weight: 700; color: #c2410c; background: rgba(249, 115, 22, 0.12); border: 1px solid rgba(249, 115, 22, 0.5); padding: 2px 8px; border-radius: 999px; }
+.cob-polo { align-self: flex-start; font-size: 0.72rem; font-weight: 700; padding: 1px 8px; border-radius: 6px; background: #e8eefc; color: #1e3a8a; }
+.cob-polo.polo-barra-do-mendes { background: #fde8f1; color: #9d174d; }
+.cob-polos { margin-bottom: 10px; }
 .cob-tel { font-size: 0.86rem; color: #0a7a3a; font-weight: 600; text-decoration: none; }
 .cob-obs { font-size: 0.82rem; color: #3b414a; background: #f7f8fa; border-radius: 8px; padding: 5px 8px; white-space: pre-wrap; }
 .cob-meta { font-size: 0.75rem; color: var(--suave); }

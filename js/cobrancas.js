@@ -21,7 +21,21 @@ import {
 } from './util.js';
 
 const GESTORA = 'agaleriacampos@gmail.com';
-const POLO = 'UniFatecie – Polo Ipupiara';
+// Polos atendidos. Alunos cadastrados antes do campo "polo" contam como o primeiro (Ipupiara).
+const POLOS = [
+  { id: 'ipupiara', curto: 'Ipupiara', nome: 'UniFatecie – Polo Ipupiara' },
+  { id: 'barra-do-mendes', curto: 'Barra do Mendes', nome: 'UniFatecie – Polo Barra do Mendes' },
+];
+const poloPorId = Object.fromEntries(POLOS.map((p) => [p.id, p]));
+const poloDe = (aluno) => poloPorId[aluno?.polo] || POLOS[0];
+const CHAVE_ULTIMO_POLO = 'cob-ultimo-polo';
+function ultimoPolo() {
+  try {
+    return poloPorId[localStorage.getItem(CHAVE_ULTIMO_POLO)] ? localStorage.getItem(CHAVE_ULTIMO_POLO) : POLOS[0].id;
+  } catch {
+    return POLOS[0].id;
+  }
+}
 const VERSAO_FIREBASE = '13.1.0';
 
 const ETAPAS = [
@@ -37,7 +51,7 @@ const indiceEtapa = (id) => ETAPAS.findIndex((e) => e.id === id);
 // Tom leve: convite para o Feirão, sem cobrança direta.
 //  {nome}      primeiro nome do aluno
 //  {mensalidades}  "a mensalidade em aberto" / "as 3 mensalidades em aberto"
-//  {polo}      nome do polo
+//  {polo}      polo do aluno (Ipupiara ou Barra do Mendes)
 
 const MENSAGENS = {
   contatar: `Olá, {nome}! Tudo bem? 😊
@@ -74,7 +88,7 @@ function montarMensagem(aluno, etapa) {
   const valores = {
     nome: nome ? nome.charAt(0).toUpperCase() + nome.slice(1).toLowerCase() : '',
     mensalidades: textoMensalidades(Number(aluno?.qtd) || 0),
-    polo: POLO,
+    polo: poloDe(aluno).nome,
   };
   return (MENSAGENS[etapa] || '').replace(/\{(\w+)\}/g, (m, k) => (k in valores ? valores[k] : m));
 }
@@ -85,6 +99,7 @@ const estado = {
   usuario: null,
   alunos: [],
   busca: '',
+  filtroPolo: 'todos',
   editandoId: null,
   msgAlunoId: null,
   carregando: true,
@@ -135,10 +150,12 @@ function renderUsuario() {
 
 // ---------------------------------------------------------------- quadro
 
+const doPolo = () => estado.alunos.filter((a) => estado.filtroPolo === 'todos' || poloDe(a).id === estado.filtroPolo);
+
 function filtrados() {
   const q = normalizar(estado.busca.trim());
   const qDig = digitos(estado.busca);
-  return estado.alunos.filter((a) => {
+  return doPolo().filter((a) => {
     if (!q) return true;
     return normalizar(`${a.nome} ${a.telefone} ${a.obs || ''}`).includes(q) || (qDig.length >= 3 && digitos(a.telefone).includes(qDig));
   });
@@ -153,6 +170,7 @@ function cardAluno(a) {
         <h4>${esc(a.nome)}</h4>
         ${qtd ? `<span class="cob-qtd">${qtd} ${qtd === 1 ? 'mensalidade' : 'mensalidades'}</span>` : ''}
       </div>
+      <span class="cob-polo polo-${esc(poloDe(a).id)}">📍 ${esc(poloDe(a).curto)}</span>
       ${a.telefone ? `<a class="cob-tel" href="${esc(linkWhats(a.telefone))}"${alvoWhats}>📱 ${esc(a.telefone)}</a>` : ''}
       ${a.obs ? `<p class="cob-obs">${esc(a.obs)}</p>` : ''}
       ${a.atualizadoEm ? `<p class="cob-meta">Atualizado ${esc(tempoRelativo(a.atualizadoEm))}</p>` : ''}
@@ -165,11 +183,24 @@ function cardAluno(a) {
     </article>`;
 }
 
+function renderPolos() {
+  const opcoes = [{ id: 'todos', curto: 'Todos os polos' }, ...POLOS];
+  $('#cobPolos').innerHTML = opcoes
+    .map((p) => {
+      const n = p.id === 'todos' ? estado.alunos.length : estado.alunos.filter((a) => poloDe(a).id === p.id).length;
+      const ativo = estado.filtroPolo === p.id;
+      return `<button type="button" class="chip ${ativo ? 'ativo' : ''}" data-acao="filtro-polo" data-polo="${p.id}" aria-pressed="${ativo}">${esc(p.curto)} (${n})</button>`;
+    })
+    .join('');
+}
+
 function renderResumo() {
-  const conta = (id) => estado.alunos.filter((a) => a.etapa === id).length;
-  const emAberto = estado.alunos.filter((a) => a.etapa !== 'finalizado').reduce((s, a) => s + (Number(a.qtd) || 0), 0);
+  renderPolos();
+  const base = doPolo();
+  const conta = (id) => base.filter((a) => a.etapa === id).length;
+  const emAberto = base.filter((a) => a.etapa !== 'finalizado').reduce((s, a) => s + (Number(a.qtd) || 0), 0);
   $('#cobResumo').innerHTML = `
-    <div class="cob-resumo-item"><span class="resumo-n">${estado.alunos.length}</span><span class="resumo-nome">Alunos</span></div>
+    <div class="cob-resumo-item"><span class="resumo-n">${base.length}</span><span class="resumo-nome">Alunos</span></div>
     ${ETAPAS.map((e) => `<div class="cob-resumo-item et-${e.id}"><span class="resumo-n">${conta(e.id)}</span><span class="resumo-nome">${esc(e.nome)}</span></div>`).join('')}
     <div class="cob-resumo-item destaque"><span class="resumo-n">${emAberto}</span><span class="resumo-nome" title="Soma das mensalidades em atraso dos alunos que ainda não finalizaram">Mensalidades em aberto</span></div>`;
 }
@@ -232,6 +263,8 @@ function abrirFormAluno(aluno) {
   f.nome.value = aluno?.nome || '';
   f.telefone.value = aluno?.telefone || '';
   f.qtd.value = aluno?.qtd ?? 1;
+  const poloAtual = aluno ? poloDe(aluno).id : estado.filtroPolo !== 'todos' ? estado.filtroPolo : ultimoPolo();
+  f.polo.innerHTML = POLOS.map((p) => `<option value="${p.id}" ${p.id === poloAtual ? 'selected' : ''}>${esc(p.curto.startsWith('Polo') ? p.curto : `Polo ${p.curto}`)}</option>`).join('');
   f.etapa.innerHTML = ETAPAS.map((e) => `<option value="${e.id}" ${e.id === (aluno?.etapa || 'contatar') ? 'selected' : ''}>${esc(e.nome)}</option>`).join('');
   f.obs.value = aluno?.obs || '';
   $('#btnExcluir').hidden = !aluno;
@@ -257,7 +290,13 @@ async function salvarAluno(e) {
   const id = estado.editandoId;
   const repetido = estado.alunos.find((a) => a.id !== id && numeroWhats(a.telefone) === numeroWhats(telefone));
   if (repetido && !confirm(`Esse WhatsApp já está cadastrado para ${repetido.nome}. Salvar mesmo assim?`)) return;
-  const dados = { nome, telefone, qtd, etapa: f.etapa.value, obs: f.obs.value.trim(), atualizadoEm: F.serverTimestamp() };
+  const polo = poloPorId[f.polo.value] ? f.polo.value : POLOS[0].id;
+  try {
+    localStorage.setItem(CHAVE_ULTIMO_POLO, polo);
+  } catch {
+    /* sem armazenamento local: tudo bem */
+  }
+  const dados = { nome, telefone, qtd, polo, etapa: f.etapa.value, obs: f.obs.value.trim(), atualizadoEm: F.serverTimestamp() };
   $('#dlgAluno').close();
   try {
     if (id) await F.updateDoc(F.doc(colecao, id), dados);
@@ -329,6 +368,9 @@ document.addEventListener('click', async (e) => {
       return A.signOut(auth);
     case 'novo':
       return abrirFormAluno(null);
+    case 'filtro-polo':
+      estado.filtroPolo = el.dataset.polo;
+      return renderQuadro();
     case 'editar':
       return aluno && abrirFormAluno(aluno);
     case 'excluir':

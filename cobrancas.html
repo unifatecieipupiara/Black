@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
-  <title>Cobranças · UniFatecie – Polo Ipupiara</title>
+  <title>Cobranças · UniFatecie</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%230d0d10'/><text x='32' y='42' font-size='26' font-family='Arial' font-weight='700' text-anchor='middle' fill='%23ffc21a'>R$</text></svg>">
   <link rel="stylesheet" href="css/estilo.css">
 </head>
@@ -14,7 +14,7 @@
       <div class="marca">
         <span class="selo">FEIRÃO<br>NEGOC.</span>
         <div>
-          <h1>Cobranças · Polo Ipupiara</h1>
+          <h1>Cobranças · UniFatecie</h1>
           <p>Feirão da Negociação</p>
         </div>
       </div>
@@ -31,6 +31,7 @@
 
   <div id="app" hidden>
     <main class="conteudo">
+      <div id="cobPolos" class="chips cob-polos" role="group" aria-label="Filtrar por polo"></div>
       <div id="cobResumo" class="cob-resumo"></div>
       <div class="barra">
         <input type="search" id="cobBusca" class="campo-busca" placeholder="Buscar por nome, telefone ou observação…" aria-label="Buscar aluno">
@@ -75,9 +76,14 @@
           <input name="qtd" type="number" inputmode="numeric" required min="1" max="120" step="1" value="1">
         </label>
       </div>
-      <label>Etapa
-        <select name="etapa"></select>
-      </label>
+      <div class="form-linha">
+        <label>Polo *
+          <select name="polo" required></select>
+        </label>
+        <label>Etapa
+          <select name="etapa"></select>
+        </label>
+      </div>
       <label>Observação
         <textarea name="obs" rows="3" maxlength="2000" placeholder="Opcional. Ex.: proposta 3x de R$ …, paga dia 10"></textarea>
       </label>

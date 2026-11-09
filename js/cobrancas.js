@@ -59,6 +59,7 @@ const indiceEtapa = (id) => ETAPAS.findIndex((e) => e.id === id);
 // Tom leve: convite para o Feirão, sem cobrança direta.
 //  {nome}      primeiro nome do aluno
 //  {mensalidades}  "a mensalidade em aberto" / "as 3 mensalidades em aberto"
+//  {qtdTexto}  "1 mensalidade em aberto" / "3 mensalidades em aberto"
 //  {polo}      polo do aluno (Ipupiara ou Barra do Mendes)
 
 const MENSAGENS = {
@@ -87,31 +88,41 @@ Se precisar de alguma ajuda, é só me chamar!`,
 Muito obrigada pela confiança. Agora é seguir firme nos estudos, e conte sempre com a gente aqui no *{polo}*! 💛`,
   },
 
-  // Pós-Graduação: não participa do Feirão (sem falar em desconto).
+  // Pós-Graduação: não participa do Feirão. Motivo do contato: parte financeira;
+  // a gestora pode atualizar os boletos e retirar os juros de atraso.
   pos: {
     contatar: `Olá, {nome}! Tudo bem? 😊
 
-Aqui é da *{polo}*. Estou passando para conversar rapidinho sobre a sua *pós-graduação*. Quero te ajudar a deixar tudo organizado para você seguir com tranquilidade até o seu certificado. 🎓
+Aqui é da *{polo}*. Estou entrando em contato porque identifiquei {qtdTexto} na parte financeira da sua *pós-graduação*.
 
-Posso te mandar os detalhes por aqui? 💛`,
+A boa notícia é que consigo *atualizar os boletos* e *retirar os juros de atraso*, para você regularizar de forma simples.
+
+Posso te passar os detalhes por aqui? 💛`,
 
     negociacao: `Oi, {nome}! 😊
 
-Sobre a sua *pós-graduação*: para regularizar {mensalidades}, posso ver com você a melhor forma de pagamento, à vista ou parcelado, do jeito que ficar mais tranquilo para você.
+Sobre a sua *pós-graduação*: para regularizar {mensalidades}, eu *atualizo os boletos* e *retiro os juros de atraso*. Você paga só o valor original, sem acréscimos.
 
-Me conta o que fica melhor que eu já preparo tudo certinho. 😉`,
+Me conta qual data fica melhor para o pagamento que eu já gero os boletos atualizados para você. 😉`,
 
     aguardando: `Oi, {nome}! Tudo certo? 😊
 
-Passando só para lembrar do pagamento que combinamos da sua *pós-graduação*. Assim que fizer, me manda o comprovante por aqui que eu já confirmo e deixo tudo regularizado. ✅
+Passando só para lembrar dos boletos atualizados da sua *pós-graduação*, já sem os juros de atraso. Assim que pagar, me manda o comprovante por aqui que eu confirmo e deixo tudo regularizado. ✅
 
-Se precisar de alguma ajuda, é só me chamar!`,
+Se precisar que eu reenvie algum boleto, é só me chamar!`,
 
     finalizado: `{nome}, pagamento confirmado! 🎉
 
-Muito obrigada! Sua pós-graduação está em dia. Agora é seguir firme até o certificado, e conte sempre com a gente aqui no *{polo}*! 💛`,
+Muito obrigada! A parte financeira da sua pós-graduação está regularizada. Conte sempre com a gente aqui no *{polo}*! 💛`,
   },
 };
+
+// "1 mensalidade em aberto" / "3 mensalidades em aberto" (sem artigo).
+function qtdSemArtigo(qtd) {
+  if (qtd === 1) return '1 mensalidade em aberto';
+  if (qtd > 1) return `${qtd} mensalidades em aberto`;
+  return 'mensalidades em aberto';
+}
 
 function textoMensalidades(qtd) {
   if (qtd === 1) return 'a mensalidade em aberto';
@@ -124,6 +135,7 @@ function montarMensagem(aluno, etapa) {
   const valores = {
     nome: nome ? nome.charAt(0).toUpperCase() + nome.slice(1).toLowerCase() : '',
     mensalidades: textoMensalidades(Number(aluno?.qtd) || 0),
+    qtdTexto: qtdSemArtigo(Number(aluno?.qtd) || 0),
     polo: poloDe(aluno).nome,
   };
   return (MENSAGENS[tipoDe(aluno).id]?.[etapa] || '').replace(/\{(\w+)\}/g, (m, k) => (k in valores ? valores[k] : m));

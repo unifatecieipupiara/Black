@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Cobranças · UniFatecie – Polo Ipupiara</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%230d0d10'/><text x='32' y='42' font-size='26' font-family='Arial' font-weight='700' text-anchor='middle' fill='%23ffc21a'>R$</text></svg>">
+  <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+  <header class="topo">
+    <div class="topo-int">
+      <div class="marca">
+        <span class="selo">FEIRÃO<br>NEGOC.</span>
+        <div>
+          <h1>Cobranças · Polo Ipupiara</h1>
+          <p>Feirão da Negociação</p>
+        </div>
+      </div>
+      <div id="usuario" class="usuario"></div>
+    </div>
+  </header>
+
+  <!-- Tela de acesso: só a gestora entra -->
+  <main id="telaAcesso" class="tela-acesso">
+    <div class="acesso-card" id="acessoConteudo" aria-live="polite">
+      <p>Carregando…</p>
+    </div>
+  </main>
+
+  <div id="app" hidden>
+    <main class="conteudo">
+      <div id="cobResumo" class="cob-resumo"></div>
+      <div class="barra">
+        <input type="search" id="cobBusca" class="campo-busca" placeholder="Buscar por nome, telefone ou observação…" aria-label="Buscar aluno">
+        <div class="barra-acoes">
+          <button type="button" class="btn btn-primario" data-acao="novo">+ Novo aluno</button>
+        </div>
+      </div>
+      <p class="cob-dica">Arraste o card para a próxima etapa (no celular, segure o card por um instante antes de arrastar) ou use as setas ◀ ▶.</p>
+      <div class="quadro" id="quadro">
+        <section class="coluna" data-etapa="contatar">
+          <h2 class="coluna-titulo">Entrar em contato <span class="coluna-n"></span></h2>
+          <div class="coluna-lista" data-etapa="contatar"></div>
+        </section>
+        <section class="coluna" data-etapa="negociacao">
+          <h2 class="coluna-titulo">Em negociação <span class="coluna-n"></span></h2>
+          <div class="coluna-lista" data-etapa="negociacao"></div>
+        </section>
+        <section class="coluna" data-etapa="aguardando">
+          <h2 class="coluna-titulo">Aguardando pagamento <span class="coluna-n"></span></h2>
+          <div class="coluna-lista" data-etapa="aguardando"></div>
+        </section>
+        <section class="coluna" data-etapa="finalizado">
+          <h2 class="coluna-titulo">Finalizado <span class="coluna-n"></span></h2>
+          <div class="coluna-lista" data-etapa="finalizado"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Cadastro / edição de aluno -->
+  <dialog id="dlgAluno" aria-labelledby="dlgAlunoTitulo">
+    <form id="formAluno" method="dialog" class="form">
+      <h3 id="dlgAlunoTitulo">Novo aluno</h3>
+      <label>Nome *
+        <input name="nome" required maxlength="200" autocomplete="off">
+      </label>
+      <div class="form-linha">
+        <label>WhatsApp *
+          <input name="telefone" type="tel" inputmode="tel" required placeholder="(77) 99999-9999" maxlength="40" autocomplete="off">
+        </label>
+        <label>Mensalidades em atraso *
+          <input name="qtd" type="number" inputmode="numeric" required min="1" max="120" step="1" value="1">
+        </label>
+      </div>
+      <label>Etapa
+        <select name="etapa"></select>
+      </label>
+      <label>Observação
+        <textarea name="obs" rows="3" maxlength="2000" placeholder="Opcional. Ex.: proposta 3x de R$ …, paga dia 10"></textarea>
+      </label>
+      <div class="form-botoes">
+        <button type="button" class="btn btn-perigo" data-acao="excluir" id="btnExcluir" hidden>🗑️ Excluir</button>
+        <button type="button" class="btn" data-acao="fechar-dialogo">Cancelar</button>
+        <button type="submit" class="btn btn-primario">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Mensagem para o aluno -->
+  <dialog id="dlgMsg" aria-labelledby="dlgMsgTitulo">
+    <div class="form">
+      <h3 id="dlgMsgTitulo">Mensagem para o aluno</h3>
+      <div class="form-linha">
+        <label>Mensagem da etapa
+          <select id="msgEtapa"></select>
+        </label>
+        <label>WhatsApp
+          <input id="msgTelefone" type="tel" inputmode="tel" autocomplete="off">
+        </label>
+      </div>
+      <label>Texto (pode editar antes de enviar)
+        <textarea id="msgTexto" rows="10"></textarea>
+      </label>
+      <div class="form-botoes">
+        <button type="button" class="btn" data-acao="fechar-dialogo">Fechar</button>
+        <button type="button" class="btn" data-acao="msg-copiar">📋 Copiar</button>
+        <a id="msgWhats" class="btn btn-whats" target="_blank" rel="noopener">💬 Abrir no WhatsApp</a>
+      </div>
+    </div>
+  </dialog>
+
+  <script type="module" src="js/cobrancas.js"></script>
+</body>
+</html>

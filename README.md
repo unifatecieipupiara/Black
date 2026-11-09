@@ -22,6 +22,16 @@ Firestore, em `config/acesso` (campo `chave`), e só os e-mails autorizados cons
 No primeiro acesso o painel pede a chave uma vez e a salva lá; depois ela não é mais pedida.
 Para consultar a chave: Firebase → Firestore Database → coleção `config` → documento `acesso`.
 
+## Cobranças (só a gestora)
+
+A página [`cobrancas.html`](cobrancas.html) é um funil do **Feirão da Negociação** (Entrar em
+contato → Em negociação → Aguardando pagamento → Finalizado), com cadastro do aluno (nome,
+WhatsApp, mensalidades em atraso e observação) e mensagem pronta para cada etapa. Os cards podem
+ser arrastados entre as etapas (no celular, segure um instante antes de arrastar).
+
+Os alunos ficam no Firestore (coleção `cobrancas`), e as regras liberam acesso **somente** ao
+e-mail da gestora. O atalho "💰 Cobranças" aparece no topo do painel só para ela.
+
 ## Arquivos
 
 | Arquivo | Para que serve |

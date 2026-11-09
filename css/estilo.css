@@ -540,6 +540,11 @@ dialog.dlg-largo { width: min(900px, calc(100% - 24px)); }
 .imp-tabela td.num { text-align: right; white-space: nowrap; }
 .imp-tabela select { font: inherit; font-size: 0.82rem; padding: 3px 4px; border-radius: 6px; border: 1px solid #cfd4da; }
 .imp-aviso { font-size: 0.72rem; color: #b45309; }
+.imp-novo { font-size: 0.78rem; font-weight: 700; color: #1e40af; }
+.imp-unir { font-size: 0.78rem; font-weight: 700; color: #166534; }
+.imp-igual { font-size: 0.78rem; font-weight: 700; color: var(--suave); }
+.imp-linha-igual td { color: var(--suave); }
+.cob-repetidos { margin: 0 0 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .cob-tel { font-size: 0.86rem; color: #0a7a3a; font-weight: 600; text-decoration: none; }
 .cob-obs { font-size: 0.82rem; color: #3b414a; background: #f7f8fa; border-radius: 8px; padding: 5px 8px; white-space: pre-wrap; }
 .cob-meta { font-size: 0.75rem; color: var(--suave); }

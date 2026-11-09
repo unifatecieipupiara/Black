@@ -257,6 +257,7 @@ function renderResumo() {
 
 function renderQuadro() {
   renderResumo();
+  renderRepetidos();
   const lista = filtrados();
   for (const e of ETAPAS) {
     const doEtapa = lista
@@ -375,15 +376,63 @@ async function excluirAluno() {
 
 // ---------------------------------------------------------------- importar planilha
 // Cada linha da planilha é uma mensalidade em atraso: "Status | Vencimento | Valor | Aluno | Filial".
-// As linhas são agrupadas por aluno; a quantidade de linhas vira "mensalidades em atraso".
+// As linhas são agrupadas por aluno. Cada card guarda os vencimentos importados
+// ("AAAA-MM-DD|valor"), para que uma nova planilha UNA as mensalidades no card
+// existente sem contar o mesmo mês duas vezes.
 
 const reais = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).replace(/\s/g, ' ');
+const chaveNome = (nome) => normalizar(nome).replace(/\s+/g, ' ').trim();
 let previaImportacao = [];
 
 function poloDaFilial(filial) {
   const f = normalizar(filial);
   return f.includes('barra') ? 'barra-do-mendes' : 'ipupiara';
 }
+
+// Resumo de uma lista de vencimentos: quantidade, total e período.
+function resumoVencimentos(lista) {
+  const ordenada = [...new Set(lista)].sort();
+  const total = ordenada.reduce((s, v) => s + (Number(v.split('|')[1]) || 0), 0);
+  const br = (v) => v.split('|')[0].split('-').reverse().join('/');
+  const qtd = ordenada.length;
+  return {
+    vencimentos: ordenada,
+    qtd,
+    total: Math.round(total * 100) / 100,
+    periodo: qtd ? (qtd === 1 ? br(ordenada[0]) : `${br(ordenada[0])} a ${br(ordenada[qtd - 1])}`) : '',
+  };
+}
+
+const linhaPlanilha = (r) =>
+  `Planilha: ${r.qtd} ${r.qtd === 1 ? 'mensalidade' : 'mensalidades'} (${r.periodo}) · total até o vencimento ${reais(r.total)}`;
+
+// Troca a linha "Planilha: …" da observação, mantendo as anotações da gestora.
+function obsComResumo(obs, resumo) {
+  const outras = String(obs || '')
+    .split('\n')
+    .filter((l) => l.trim() && !l.startsWith('Planilha:'));
+  return [linhaPlanilha(resumo), ...outras].join('\n').slice(0, 2000);
+}
+
+// Entre cards repetidos, o principal é o que tem WhatsApp, depois o de etapa mais avançada.
+function escolherPrincipal(cards) {
+  return [...cards].sort(
+    (a, b) =>
+      Number(Boolean(b.telefone)) - Number(Boolean(a.telefone)) ||
+      indiceEtapa(b.etapa) - indiceEtapa(a.etapa) ||
+      (a.criadoEm || 0) - (b.criadoEm || 0),
+  )[0];
+}
+
+const cardsPorNome = () => {
+  const mapa = new Map();
+  for (const a of estado.alunos) {
+    const k = chaveNome(a.nome);
+    if (!mapa.has(k)) mapa.set(k, []);
+    mapa.get(k).push(a);
+  }
+  return mapa;
+};
 
 function interpretarPlanilha(texto) {
   const grupos = new Map();
@@ -400,31 +449,29 @@ function interpretarPlanilha(texto) {
       continue;
     }
     const valor = Number(celulas[iValor].replace(/[^\d,]/g, '').replace(',', '.'));
-    const [d, m, a] = celulas[iData].split('/').map(Number);
-    const chave = normalizar(nome).replace(/\s+/g, ' ');
-    if (!grupos.has(chave)) grupos.set(chave, { nome: nome.replace(/\s+/g, ' '), polo: poloDaFilial(celulas[iValor + 2] || ''), vencimentos: [], total: 0 });
-    const g = grupos.get(chave);
-    g.vencimentos.push({ texto: celulas[iData], ordem: a * 10000 + m * 100 + d });
-    g.total += valor;
+    const [d, m, a] = celulas[iData].split('/');
+    const chave = chaveNome(nome);
+    if (!grupos.has(chave)) grupos.set(chave, { nome: nome.replace(/\s+/g, ' '), polo: poloDaFilial(celulas[iValor + 2] || ''), vencimentos: [] });
+    grupos.get(chave).vencimentos.push(`${a}-${m}-${d}|${valor.toFixed(2)}`);
   }
+
+  const existentes = cardsPorNome();
   const alunos = [...grupos.values()].map((g) => {
-    g.vencimentos.sort((x, y) => x.ordem - y.ordem);
-    const qtd = g.vencimentos.length;
-    const periodo = qtd === 1 ? g.vencimentos[0].texto : `${g.vencimentos[0].texto} a ${g.vencimentos[qtd - 1].texto}`;
+    const daPlanilha = resumoVencimentos(g.vencimentos);
+    const cards = existentes.get(chaveNome(g.nome)) || [];
     // Sugestão: mensalidades de R$ 29,90 costumam ser de Pós-Graduação (confira na prévia).
-    const sugerePos = Math.abs(g.total / qtd - 29.9) < 0.005;
-    const existente = estado.alunos.find((a) => normalizar(a.nome).replace(/\s+/g, ' ') === normalizar(g.nome).replace(/\s+/g, ' '));
-    return {
-      nome: g.nome,
-      polo: g.polo,
-      qtd,
-      total: Math.round(g.total * 100) / 100,
-      periodo,
-      tipo: sugerePos ? 'pos' : 'graduacao',
-      sugerePos,
-      existente: Boolean(existente),
-      incluir: !existente,
-    };
+    const sugerePos = Math.abs(daPlanilha.total / daPlanilha.qtd - 29.9) < 0.005;
+    const base = { nome: g.nome, polo: g.polo, tipo: sugerePos ? 'pos' : 'graduacao', sugerePos, daPlanilha };
+    if (!cards.length) return { ...base, acao: 'novo', final: daPlanilha, incluir: true };
+
+    const alvo = escolherPrincipal(cards);
+    const guardados = cards.flatMap((c) => (Array.isArray(c.vencimentos) ? c.vencimentos : []));
+    const final = resumoVencimentos([...guardados, ...daPlanilha.vencimentos]);
+    // Card sem vencimentos guardados (cadastro manual ou importação antiga): fica com a maior quantidade.
+    if (!guardados.length) final.qtd = Math.max(Number(alvo.qtd) || 0, final.qtd);
+    const novos = daPlanilha.vencimentos.filter((v) => !guardados.includes(v)).length;
+    const muda = final.qtd !== (Number(alvo.qtd) || 0) || !guardados.length || novos > 0;
+    return { ...base, acao: muda ? 'unir' : 'igual', alvo, novos, semHistorico: !guardados.length, repetidos: cards.length, final, incluir: muda };
   });
   alunos.sort((x, y) => x.nome.localeCompare(y.nome, 'pt-BR'));
   return { alunos, ignoradas };
@@ -440,6 +487,18 @@ function abrirImportar() {
   $('#impTexto').focus();
 }
 
+function situacao(a) {
+  if (a.acao === 'novo') return '<span class="imp-novo">Novo card</span>';
+  const rep = a.repetidos > 1 ? `<br><span class="imp-aviso">${a.repetidos} cards com esse nome — use "Juntar repetidos"</span>` : '';
+  if (a.acao === 'igual') return `<span class="imp-igual">Já está atualizado</span>${rep}`;
+  const detalhe = a.semHistorico
+    ? 'passa a guardar os vencimentos da planilha'
+    : a.novos
+      ? `+${a.novos} ${a.novos === 1 ? 'mensalidade nova' : 'mensalidades novas'}`
+      : 'atualiza a quantidade';
+  return `<span class="imp-unir">Unir com o card existente</span><br><span class="imp-aviso">${detalhe} → ${a.final.qtd} no total</span>${rep}`;
+}
+
 function lerPlanilha() {
   const { alunos, ignoradas } = interpretarPlanilha($('#impTexto').value);
   previaImportacao = alunos;
@@ -449,25 +508,36 @@ function lerPlanilha() {
     return;
   }
   const linhas = alunos
-    .map(
-      (a, i) => `
-      <tr>
-        <td><input type="checkbox" data-imp="incluir" data-i="${i}" ${a.incluir ? 'checked' : ''} aria-label="Importar ${esc(a.nome)}"></td>
-        <td><strong>${esc(a.nome)}</strong>${a.existente ? '<br><span class="imp-aviso">já está no quadro</span>' : ''}</td>
-        <td class="num">${a.qtd}</td>
-        <td class="num">${reais(a.total)}</td>
-        <td>${esc(a.periodo)}</td>
-        <td><select data-imp="polo" data-i="${i}">${POLOS.map((p) => `<option value="${p.id}" ${p.id === a.polo ? 'selected' : ''}>${esc(p.curto)}</option>`).join('')}</select></td>
-        <td><select data-imp="tipo" data-i="${i}">${TIPOS.map((t) => `<option value="${t.id}" ${t.id === a.tipo ? 'selected' : ''}>${esc(t.curto)}</option>`).join('')}</select>${a.sugerePos ? '<br><span class="imp-aviso">sugestão pelo valor R$ 29,90 — confira</span>' : ''}</td>
-      </tr>`,
-    )
+    .map((a, i) => {
+      const existente = a.acao !== 'novo';
+      const polo = existente
+        ? esc(poloDe(a.alvo).curto)
+        : `<select data-imp="polo" data-i="${i}">${POLOS.map((p) => `<option value="${p.id}" ${p.id === a.polo ? 'selected' : ''}>${esc(p.curto)}</option>`).join('')}</select>`;
+      const curso = existente
+        ? esc(tipoDe(a.alvo).curto)
+        : `<select data-imp="tipo" data-i="${i}">${TIPOS.map((t) => `<option value="${t.id}" ${t.id === a.tipo ? 'selected' : ''}>${esc(t.curto)}</option>`).join('')}</select>${a.sugerePos ? '<br><span class="imp-aviso">sugestão pelo valor R$ 29,90 — confira</span>' : ''}`;
+      return `
+      <tr class="${a.acao === 'igual' ? 'imp-linha-igual' : ''}">
+        <td><input type="checkbox" data-imp="incluir" data-i="${i}" ${a.incluir ? 'checked' : ''} ${a.acao === 'igual' ? 'disabled' : ''} aria-label="Importar ${esc(a.nome)}"></td>
+        <td><strong>${esc(a.nome)}</strong></td>
+        <td>${situacao(a)}</td>
+        <td class="num">${a.daPlanilha.qtd}</td>
+        <td class="num">${reais(a.daPlanilha.total)}</td>
+        <td>${esc(a.daPlanilha.periodo)}</td>
+        <td>${polo}</td>
+        <td>${curso}</td>
+      </tr>`;
+    })
     .join('');
-  const linhasPlanilha = alunos.reduce((s, a) => s + a.qtd, 0);
+  const linhasPlanilha = alunos.reduce((s, a) => s + a.daPlanilha.qtd, 0);
+  const n = (acao) => alunos.filter((a) => a.acao === acao).length;
   $('#impPrevia').innerHTML = `
-    <p class="pequeno"><strong>${alunos.length} alunos</strong> encontrados em ${linhasPlanilha} mensalidades${ignoradas ? ` (${ignoradas} linha(s) ignorada(s), como o cabeçalho)` : ''}. Confira o tipo de curso e desmarque quem não deve entrar. Todos entram em "Entrar em contato", sem WhatsApp.</p>
+    <p class="pequeno"><strong>${alunos.length} alunos</strong> em ${linhasPlanilha} mensalidades${ignoradas ? ` (${ignoradas} linha(s) ignorada(s), como o cabeçalho)` : ''}:
+      ${n('novo')} novo(s), ${n('unir')} para unir com cards existentes, ${n('igual')} já atualizado(s).
+      Novos entram em "Entrar em contato", sem WhatsApp; os existentes mantêm etapa, WhatsApp e anotações.</p>
     <div class="imp-tabela-caixa">
       <table class="imp-tabela">
-        <thead><tr><th></th><th>Aluno</th><th>Mens.</th><th>Total</th><th>Vencimentos</th><th>Polo</th><th>Curso</th></tr></thead>
+        <thead><tr><th></th><th>Aluno</th><th>Situação</th><th>Mens.</th><th>Total</th><th>Vencimentos</th><th>Polo</th><th>Curso</th></tr></thead>
         <tbody>${linhas}</tbody>
       </table>
     </div>`;
@@ -477,7 +547,7 @@ function lerPlanilha() {
 function atualizarBotaoImportar() {
   const n = previaImportacao.filter((a) => a.incluir).length;
   $('#impConfirmar').disabled = !n;
-  $('#impConfirmar').textContent = n ? `Importar ${n} aluno${n > 1 ? 's' : ''}` : 'Importar';
+  $('#impConfirmar').textContent = n ? `Importar ${n} aluno${n > 1 ? 's' : ''}` : 'Nada para importar';
 }
 
 document.addEventListener('change', (e) => {
@@ -495,29 +565,95 @@ async function confirmarImportacao() {
   if (!lista.length) return;
   const botao = $('#impConfirmar');
   botao.disabled = true;
-  let ok = 0;
+  let novos = 0;
+  let unidos = 0;
   try {
     for (const a of lista) {
-      botao.textContent = `Importando ${ok + 1} de ${lista.length}…`;
-      await F.addDoc(colecao, {
-        nome: a.nome,
-        telefone: '',
-        qtd: a.qtd,
-        polo: a.polo,
-        tipo: a.tipo,
-        etapa: 'contatar',
-        obs: `Planilha: ${a.qtd} ${a.qtd === 1 ? 'mensalidade' : 'mensalidades'} (${a.periodo}) · total até o vencimento ${reais(a.total)}`,
-        criadoEm: F.serverTimestamp(),
-        atualizadoEm: F.serverTimestamp(),
-      });
-      ok += 1;
+      botao.textContent = `Importando ${novos + unidos + 1} de ${lista.length}…`;
+      if (a.acao === 'novo') {
+        await F.addDoc(colecao, {
+          nome: a.nome,
+          telefone: '',
+          qtd: a.final.qtd,
+          polo: a.polo,
+          tipo: a.tipo,
+          etapa: 'contatar',
+          vencimentos: a.final.vencimentos,
+          obs: obsComResumo('', a.final),
+          criadoEm: F.serverTimestamp(),
+          atualizadoEm: F.serverTimestamp(),
+        });
+        novos += 1;
+      } else {
+        await F.updateDoc(F.doc(colecao, a.alvo.id), {
+          qtd: a.final.qtd,
+          vencimentos: a.final.vencimentos,
+          obs: obsComResumo(a.alvo.obs, a.final),
+          atualizadoEm: F.serverTimestamp(),
+        });
+        unidos += 1;
+      }
     }
     $('#dlgImportar').close();
-    toast(`${ok} aluno${ok > 1 ? 's' : ''} importado${ok > 1 ? 's' : ''}! Agora é só adicionar o WhatsApp.`);
+    toast(`Pronto: ${novos} novo(s) e ${unidos} unido(s) com cards existentes.`);
   } catch (err) {
     console.error(err);
-    toast(`Importados ${ok} de ${lista.length}. Erro: ${err.message || err}`, 'erro');
+    toast(`Importados ${novos + unidos} de ${lista.length}. Erro: ${err.message || err}`, 'erro');
     atualizarBotaoImportar();
+  }
+}
+
+// ---------------------------------------------------------------- juntar cards repetidos
+
+function gruposRepetidos() {
+  return [...cardsPorNome().values()].filter((cards) => cards.length > 1);
+}
+
+function renderRepetidos() {
+  const el = $('#cobRepetidos');
+  const grupos = gruposRepetidos();
+  el.hidden = !grupos.length;
+  if (!grupos.length) return;
+  const extras = grupos.reduce((s, g) => s + g.length - 1, 0);
+  el.innerHTML = `⚠️ <strong>${grupos.length} aluno(s) com cards repetidos</strong> (${extras} card(s) a mais): ${grupos
+    .slice(0, 4)
+    .map((g) => esc(g[0].nome))
+    .join(', ')}${grupos.length > 4 ? '…' : ''}
+    <button type="button" class="btn btn-mini btn-primario" data-acao="juntar-repetidos">🔗 Juntar repetidos</button>`;
+}
+
+async function juntarRepetidos() {
+  const grupos = gruposRepetidos();
+  if (!grupos.length) return;
+  const extras = grupos.reduce((s, g) => s + g.length - 1, 0);
+  if (!confirm(`Juntar ${grupos.length} aluno(s) repetido(s)? Fica um card por aluno (o que tem WhatsApp ou a etapa mais avançada) e ${extras} card(s) a mais serão apagados. As mensalidades não são contadas em dobro.`)) return;
+  let feitos = 0;
+  try {
+    for (const cards of grupos) {
+      const principal = escolherPrincipal(cards);
+      const outros = cards.filter((c) => c.id !== principal.id);
+      const guardados = cards.flatMap((c) => (Array.isArray(c.vencimentos) ? c.vencimentos : []));
+      const resumo = resumoVencimentos(guardados);
+      // Sem vencimentos guardados (importação antiga), os cards repetidos vieram da mesma planilha: fica a maior quantidade.
+      const qtd = guardados.length ? resumo.qtd : Math.max(...cards.map((c) => Number(c.qtd) || 0));
+      const anotacoes = [...new Set(cards.flatMap((c) => String(c.obs || '').split('\n')).filter((l) => l.trim() && !l.startsWith('Planilha:')))];
+      const linhaAntiga = cards.map((c) => String(c.obs || '').split('\n').find((l) => l.startsWith('Planilha:'))).find(Boolean);
+      const obs = (guardados.length ? [linhaPlanilha(resumo), ...anotacoes] : [linhaAntiga, ...anotacoes].filter(Boolean)).join('\n').slice(0, 2000);
+      const dados = {
+        qtd,
+        obs,
+        telefone: principal.telefone || outros.find((c) => c.telefone)?.telefone || '',
+        atualizadoEm: F.serverTimestamp(),
+      };
+      if (guardados.length) dados.vencimentos = resumo.vencimentos;
+      await F.updateDoc(F.doc(colecao, principal.id), dados);
+      for (const c of outros) await F.deleteDoc(F.doc(colecao, c.id));
+      feitos += 1;
+    }
+    toast(`${feitos} aluno(s) juntado(s). Agora há um card por aluno.`);
+  } catch (err) {
+    console.error(err);
+    toast(`Juntados ${feitos} de ${grupos.length}. Erro: ${err.message || err}`, 'erro');
   }
 }
 
@@ -575,6 +711,8 @@ document.addEventListener('click', async (e) => {
       return lerPlanilha();
     case 'imp-confirmar':
       return confirmarImportacao();
+    case 'juntar-repetidos':
+      return juntarRepetidos();
     case 'filtro-polo':
       estado.filtroPolo = el.dataset.polo;
       return renderQuadro();

@@ -56,15 +56,33 @@
     <section id="abaLeads" class="aba" role="tabpanel" aria-labelledby="tab-leads" hidden>
       <div id="leadsEstado" class="estado" hidden></div>
       <div id="leadsConteudo" hidden>
-        <div id="resumo" class="resumo"></div>
+        <div id="placar" class="placar"></div>
         <div class="barra">
-          <input type="search" id="buscaLead" class="campo-busca" placeholder="Buscar por telefone ou observação…" aria-label="Buscar lead">
+          <input type="search" id="buscaLead" class="campo-busca" placeholder="Buscar por nome, telefone ou observação…" aria-label="Buscar lead">
           <div class="barra-acoes">
             <button type="button" class="btn btn-primario" data-acao="novo-lead">+ Novo lead</button>
             <button type="button" class="btn" data-acao="exportar">⬇ Exportar planilha</button>
           </div>
         </div>
-        <div id="listaLeads" class="lista-leads"></div>
+        <p class="cob-dica">Arraste o card para outra etapa (no celular, segure o card por um instante antes de arrastar), use as setas ◀ ▶ ou mude o status em ✏️ Editar.</p>
+        <div class="quadro" id="quadroLeads">
+          <section class="coluna" data-etapa="contatar">
+            <h2 class="coluna-titulo">Entrar em contato <span class="coluna-n"></span></h2>
+            <div class="coluna-lista" data-etapa="contatar"></div>
+          </section>
+          <section class="coluna" data-etapa="andamento">
+            <h2 class="coluna-titulo">Em andamento <span class="coluna-n"></span></h2>
+            <div class="coluna-lista" data-etapa="andamento"></div>
+          </section>
+          <section class="coluna" data-etapa="matriculado">
+            <h2 class="coluna-titulo">Matriculado <span class="coluna-n"></span></h2>
+            <div class="coluna-lista" data-etapa="matriculado"></div>
+          </section>
+          <section class="coluna" data-etapa="perdido">
+            <h2 class="coluna-titulo">Perdido <span class="coluna-n"></span></h2>
+            <div class="coluna-lista" data-etapa="perdido"></div>
+          </section>
+        </div>
       </div>
     </section>
   </main>
@@ -76,16 +94,26 @@
   <dialog id="dlgLead" aria-labelledby="dlgLeadTitulo">
     <form id="formLead" method="dialog" class="form">
       <h3 id="dlgLeadTitulo">Novo lead</h3>
-      <label>WhatsApp *
-        <input name="telefone" type="tel" inputmode="tel" required placeholder="(77) 99999-9999" maxlength="40" autocomplete="off">
+      <p id="leadDicaMatricula" class="msg-dica" hidden>🎉 Registrando matrícula: informe o nome do aluno e quantas matrículas foram feitas.</p>
+      <div class="form-linha">
+        <label>WhatsApp *
+          <input name="telefone" type="tel" inputmode="tel" required placeholder="(77) 99999-9999" maxlength="40" autocomplete="off">
+        </label>
+        <label>Status
+          <select name="status"></select>
+        </label>
+      </div>
+      <label>Nome do lead
+        <input name="nome" maxlength="200" placeholder="Opcional. Ex.: preencher ao realizar a matrícula" autocomplete="off">
       </label>
-      <label>Status
-        <select name="status"></select>
+      <label id="campoMatriculas" hidden>Quantidade de matrículas
+        <input name="matriculas" type="number" inputmode="numeric" min="1" max="20" step="1" value="1">
       </label>
       <label>Observação
-        <textarea name="obs" rows="4" maxlength="2000" placeholder="Opcional. Ex.: interesse em Pedagogia, pediu valores, retornar sexta…"></textarea>
+        <textarea name="obs" rows="3" maxlength="2000" placeholder="Opcional. Ex.: interesse em Pedagogia, pediu valores, retornar sexta…"></textarea>
       </label>
       <div class="form-botoes">
+        <button type="button" class="btn btn-perigo" data-acao="excluir-lead" id="btnExcluirLead" hidden>🗑️ Excluir</button>
         <button type="button" class="btn" data-acao="fechar-dialogo">Cancelar</button>
         <button type="submit" class="btn btn-primario">Salvar</button>
       </div>

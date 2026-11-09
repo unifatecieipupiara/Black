@@ -5,8 +5,10 @@ Painel simples para a campanha de Black Friday (novembro):
 - **Links de matrícula e vouchers** no topo (uso interno): Graduação, 2ª Graduação, Pós-Graduação e Transferência.
 - **Lista de cursos** com valores e **mensagem pronta** para copiar ou abrir direto no WhatsApp
   (a mensagem não inclui link nem voucher).
-- **Leads** compartilhados entre a equipe: WhatsApp, status (*Entrar em contato*, *Em andamento*, *Sem retorno*,
-  *Matriculado*, *Perdido*) e observação opcional (ex.: curso de interesse).
+- **Leads** compartilhados entre a equipe, em um funil arrastável (*Entrar em contato* → *Em andamento* →
+  *Matriculado* / *Perdido*): WhatsApp, nome (opcional), observação e quantidade de matrículas.
+  Ao levar um lead para *Matriculado*, o painel registra quem matriculou e quando.
+- **Placar de matrículas do mês** por usuário (nome editável tocando no próprio nome no topo).
 - Exportação dos leads para planilha (CSV, abre no Excel / Google Planilhas).
 
 Não precisa instalar nada: é um site estático (HTML, CSS e JavaScript).

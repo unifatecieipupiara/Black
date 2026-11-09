@@ -562,3 +562,24 @@ dialog.dlg-largo { width: min(900px, calc(100% - 24px)); }
   .quadro { grid-template-columns: repeat(4, 82vw); overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 8px; }
   .coluna { scroll-snap-align: start; }
 }
+
+/* ---------- funil de leads (painel) ---------- */
+
+.coluna[data-etapa="andamento"] { --cor-et: #1e40af; }
+.coluna[data-etapa="matriculado"] { --cor-et: #166534; }
+.coluna[data-etapa="perdido"] { --cor-et: #991b1b; }
+.lead-matr { color: #166534; background: #dcfce7; border-color: #86efac; }
+
+.placar { background: var(--card); border-radius: var(--raio); box-shadow: var(--sombra); padding: 12px 14px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px; border-left: 5px solid var(--amarelo); }
+.placar-topo { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; max-width: 520px; }
+.placar-topo strong { font-size: 1rem; text-align: center; }
+@media (max-width: 560px) { .placar-topo strong { font-size: 0.9rem; } }
+.placar-lista { display: flex; flex-wrap: wrap; gap: 8px; }
+.placar-item { display: flex; align-items: center; gap: 10px; background: #f7f8fa; border-radius: 10px; padding: 6px 12px; }
+.placar-nome { font-weight: 600; font-size: 0.9rem; }
+.placar-n { font-weight: 800; font-size: 1.1rem; color: #166534; }
+.placar-total { background: var(--preto); color: #fff; }
+.placar-total .placar-n { color: var(--amarelo); }
+
+.usuario-editar { font: inherit; background: transparent; border: 1px dashed #44454f; color: #e7e8ec; border-radius: 8px; padding: 5px 10px; cursor: pointer; }
+.usuario-editar:hover { border-color: var(--amarelo); color: #fff; }

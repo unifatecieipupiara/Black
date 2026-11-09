@@ -1,6 +1,7 @@
 import { FIREBASE_CONFIG } from './config.js';
 import { criarArmazenamento } from './armazenamento.js';
 import { abrirDados, ChaveIncorreta, formatoDeChaveValido } from './cofre.js';
+import Sortable from './vendor/sortable.esm.js';
 import {
   $,
   esc,
@@ -14,7 +15,6 @@ import {
   NO_ANDROID,
   linkWhats,
   alvoWhats,
-  tempoRelativo,
   dataHora,
   primeiroNome,
 } from './util.js';
@@ -33,14 +33,18 @@ let cursoPorId = {};
 
 // ---------------------------------------------------------------- base
 
+// Etapas do funil de leads. "Sem retorno" saiu do funil: esses leads aparecem em "Entrar em contato".
 const STATUS = [
   { id: 'contatar', nome: 'Entrar em contato' },
   { id: 'andamento', nome: 'Em andamento' },
-  { id: 'sem_retorno', nome: 'Sem retorno' },
   { id: 'matriculado', nome: 'Matriculado' },
   { id: 'perdido', nome: 'Perdido' },
 ];
 const statusPorId = Object.fromEntries(STATUS.map((s) => [s.id, s]));
+const statusDe = (lead) => (statusPorId[lead?.status] ? lead.status : 'contatar');
+const indiceStatus = (id) => STATUS.findIndex((s) => s.id === id);
+const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+const dataCurta = (ms) => (ms ? new Date(ms).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '');
 
 
 function aplicarDados(d) {
@@ -105,9 +109,11 @@ const estado = {
   carregandoLeads: true,
   semPermissao: false,
   leads: [],
-  filtroStatus: 'todos',
+  perfis: {},
+  mesPlacar: { ano: new Date().getFullYear(), mes: new Date().getMonth() },
   buscaLead: '',
   editandoId: null,
+  registrandoMatricula: false,
 };
 
 
@@ -210,7 +216,7 @@ function renderUsuario() {
     // Atalho para a página de cobranças: só para a gestora (as regras do Firestore também garantem isso).
     const gestora = String(usuario.email || '').toLowerCase() === 'agaleriacampos@gmail.com';
     el.innerHTML = `${gestora ? '<a class="btn btn-topo" href="cobrancas.html">💰 Cobranças</a>' : ''}
-      <span class="usuario-nome" title="${esc(usuario.email)}">${esc(primeiroNome(usuario.nome))}</span>
+      <button type="button" class="usuario-nome usuario-editar" data-acao="editar-nome" title="${esc(usuario.email)} · toque para editar seu nome">${esc(usuario.nome)} ✏️</button>
       <button type="button" class="btn btn-topo" data-acao="sair">Sair</button>`;
   } else {
     el.innerHTML = '';
@@ -503,80 +509,153 @@ function renderLeads() {
 
   elEstado.hidden = true;
   elConteudo.hidden = false;
-  renderResumo();
-  renderListaLeads();
+  renderPlacar();
+  renderQuadroLeads();
 }
 
-function renderResumo() {
-  const total = estado.leads.length;
-  const conta = (id) => estado.leads.filter((l) => l.status === id).length;
-  const matriculados = conta('matriculado');
-  const blocos = [
-    { id: 'todos', nome: 'Total', n: total },
-    ...STATUS.map((s) => ({ id: s.id, nome: s.nome, n: conta(s.id) })),
-  ];
-  $('#resumo').innerHTML =
-    '<div class="resumo-grade">' +
-    blocos
-      .map(
-        (b) => `
-      <button type="button" class="resumo-item st-${b.id} ${estado.filtroStatus === b.id ? 'ativo' : ''}" data-acao="filtro-status" data-status="${b.id}" aria-pressed="${estado.filtroStatus === b.id}">
-        <span class="resumo-n">${b.n}</span><span class="resumo-nome">${esc(b.nome)}</span>
-      </button>`,
-      )
-      .join('') +
-    '</div>' +
-    `<p class="taxa">Taxa de matrícula: <strong>${total ? Math.round((matriculados / total) * 100) : 0}%</strong></p>`;
+// ---------- placar de matrículas do mês (por usuário)
+
+const qtdMatriculas = (l) => Math.max(1, Math.round(Number(l.matriculas) || 1));
+
+function matriculasDoMes(ano, mes) {
+  const porUsuario = new Map();
+  let total = 0;
+  for (const l of estado.leads) {
+    if (statusDe(l) !== 'matriculado') continue;
+    const quando = l.matriculadoEm || l.atualizadoEm;
+    if (!quando) continue;
+    const d = new Date(quando);
+    if (d.getFullYear() !== ano || d.getMonth() !== mes) continue;
+    // Matrículas antigas (antes do registro de quem matriculou) contam para quem atualizou o lead.
+    const quem = l.matriculadoPor ? estado.perfis[l.matriculadoPor] || 'Usuário sem nome' : l.atualizadoPor || 'Sem registro';
+    const n = qtdMatriculas(l);
+    porUsuario.set(quem, (porUsuario.get(quem) || 0) + n);
+    total += n;
+  }
+  return { ranking: [...porUsuario].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR')), total };
 }
 
-function renderListaLeads() {
+function renderPlacar() {
+  const { ano, mes } = estado.mesPlacar;
+  const hoje = new Date();
+  const ehMesAtual = ano === hoje.getFullYear() && mes === hoje.getMonth();
+  const { ranking, total } = matriculasDoMes(ano, mes);
+  $('#placar').innerHTML = `
+    <div class="placar-topo">
+      <button type="button" class="btn btn-mini" data-acao="mes-anterior" aria-label="Mês anterior">◀</button>
+      <strong>🏆 Matrículas de ${MESES[mes]}/${ano}</strong>
+      <button type="button" class="btn btn-mini" data-acao="mes-seguinte" aria-label="Próximo mês" ${ehMesAtual ? 'disabled' : ''}>▶</button>
+    </div>
+    ${
+      ranking.length
+        ? `<div class="placar-lista">
+            ${ranking.map(([nome, n], i) => `<div class="placar-item"><span class="placar-nome">${i === 0 ? '🥇 ' : ''}${esc(nome)}</span><span class="placar-n">${n}</span></div>`).join('')}
+            <div class="placar-item placar-total"><span class="placar-nome">Total</span><span class="placar-n">${total}</span></div>
+          </div>`
+        : '<p class="pequeno">Nenhuma matrícula registrada neste mês ainda.</p>'
+    }`;
+}
+
+// ---------- funil
+
+function cardLead(l) {
+  const st = statusDe(l);
+  const i = indiceStatus(st);
+  const tel = l.telefone
+    ? `<a class="cob-tel" href="${esc(linkWhats(l.telefone))}"${alvoWhats} title="Abrir conversa no WhatsApp">📱 ${esc(l.telefone)}</a>`
+    : '';
+  const titulo = l.nome ? esc(l.nome) : l.telefone ? esc(l.telefone) : 'Sem número';
+  const n = qtdMatriculas(l);
+  const meta = l.atualizadoEm ? `Atualizado em ${dataCurta(l.atualizadoEm)}${l.atualizadoPor ? ` por ${esc(primeiroNome(l.atualizadoPor))}` : ''}` : '';
+  return `
+    <article class="cob-card" data-id="${esc(l.id)}">
+      <div class="cob-topo">
+        <h4>${titulo}</h4>
+        ${st === 'matriculado' ? `<span class="cob-qtd lead-matr">${n} ${n === 1 ? 'matrícula' : 'matrículas'}</span>` : ''}
+      </div>
+      ${tel}
+      ${l.obs ? `<p class="cob-obs">${esc(l.obs)}</p>` : ''}
+      ${meta ? `<p class="cob-meta" title="Criado em ${esc(dataHora(l.criadoEm))}${l.criadoPor ? ` por ${esc(l.criadoPor)}` : ''}">${meta}</p>` : ''}
+      <div class="cob-acoes">
+        <button type="button" class="btn btn-mini btn-primario" data-acao="msg-lead" data-id="${esc(l.id)}">💬 Mensagem</button>
+        <button type="button" class="btn btn-mini" data-acao="editar-lead" data-id="${esc(l.id)}" aria-label="Editar lead">✏️</button>
+        ${i > 0 ? `<button type="button" class="btn btn-mini" data-acao="lead-voltar" data-id="${esc(l.id)}" title="Etapa anterior" aria-label="Voltar etapa">◀</button>` : ''}
+        ${i < STATUS.length - 1 ? `<button type="button" class="btn btn-mini" data-acao="lead-avancar" data-id="${esc(l.id)}" title="Próxima etapa" aria-label="Avançar etapa">▶</button>` : ''}
+      </div>
+    </article>`;
+}
+
+function renderQuadroLeads() {
   const q = normalizar(estado.buscaLead.trim());
   const qDig = digitos(estado.buscaLead);
-  const lista = estado.leads
-    .filter((l) => estado.filtroStatus === 'todos' || l.status === estado.filtroStatus)
-    .filter((l) => {
-      if (!q) return true;
-      return normalizar(`${l.telefone} ${l.obs || ''}`).includes(q) || (qDig.length >= 3 && digitos(l.telefone).includes(qDig));
-    })
-    .sort((a, b) => (b.atualizadoEm || 0) - (a.atualizadoEm || 0));
-
-  if (!lista.length) {
-    $('#listaLeads').innerHTML = estado.leads.length
-      ? '<p class="vazio">Nenhum lead encontrado com esse filtro.</p>'
-      : '<p class="vazio">Nenhum lead cadastrado ainda. Clique em <strong>+ Novo lead</strong> para começar.</p>';
-    return;
+  const lista = estado.leads.filter((l) => {
+    if (!q) return true;
+    return normalizar(`${l.nome || ''} ${l.telefone} ${l.obs || ''}`).includes(q) || (qDig.length >= 3 && digitos(l.telefone).includes(qDig));
+  });
+  for (const s of STATUS) {
+    const daEtapa = lista.filter((l) => statusDe(l) === s.id).sort((a, b) => (b.atualizadoEm || 0) - (a.atualizadoEm || 0));
+    const col = document.querySelector(`#quadroLeads .coluna[data-etapa="${s.id}"]`);
+    col.querySelector('.coluna-n').textContent = daEtapa.length;
+    col.querySelector('.coluna-lista').innerHTML = daEtapa.length
+      ? daEtapa.map(cardLead).join('')
+      : `<p class="coluna-vazia">${estado.leads.length ? 'Nenhum lead aqui.' : 'Clique em + Novo lead para começar.'}</p>`;
   }
+}
 
-  $('#listaLeads').innerHTML = lista
-    .map((l) => {
-      const rotulo = l.telefone || 'Sem número';
-      const atualizado = l.atualizadoEm
-        ? `Atualizado ${tempoRelativo(l.atualizadoEm)}${l.atualizadoPor ? ` por ${esc(primeiroNome(l.atualizadoPor))}` : ''}`
-        : '';
-      return `
-      <article class="lead st-${esc(l.status)}">
-        <div class="lead-principal">
-          <div class="lead-cabeca">
-            <h4>${
-              l.telefone
-                ? `<a href="${esc(linkWhats(l.telefone))}"${alvoWhats} title="Abrir conversa no WhatsApp">📱 ${esc(l.telefone)}</a>`
-                : 'Sem número'
-            }</h4>
-            <select class="status-select st-${esc(l.status)}" data-acao="mudar-status" data-id="${esc(l.id)}" aria-label="Status do lead ${esc(rotulo)}">
-              ${STATUS.map((s) => `<option value="${s.id}" ${s.id === l.status ? 'selected' : ''}>${s.nome}</option>`).join('')}
-            </select>
-          </div>
-          ${l.obs ? `<p class="lead-obs">${esc(l.obs)}</p>` : ''}
-          <p class="lead-meta" title="Criado em ${esc(dataHora(l.criadoEm))}${l.criadoPor ? ` por ${esc(l.criadoPor)}` : ''}">${atualizado}</p>
-        </div>
-        <div class="lead-acoes">
-          <button type="button" class="btn btn-mini" data-acao="msg-lead" data-id="${esc(l.id)}">💬 Mensagem</button>
-          <button type="button" class="btn btn-mini" data-acao="editar-lead" data-id="${esc(l.id)}">✏️ Editar</button>
-          <button type="button" class="btn btn-mini btn-perigo" data-acao="excluir-lead" data-id="${esc(l.id)}" aria-label="Excluir lead ${esc(rotulo)}">🗑️</button>
-        </div>
-      </article>`;
-    })
-    .join('');
+let arrastarPronto = false;
+function prepararArrastarLeads() {
+  if (arrastarPronto) return;
+  arrastarPronto = true;
+  for (const lista of document.querySelectorAll('#quadroLeads .coluna-lista')) {
+    Sortable.create(lista, {
+      group: 'leads',
+      sort: false,
+      animation: 150,
+      draggable: '.cob-card',
+      delay: 200, // no celular, segure um instante antes de arrastar
+      delayOnTouchOnly: true,
+      filter: 'button, a',
+      preventOnFilter: false,
+      ghostClass: 'cob-fantasma',
+      chosenClass: 'cob-escolhido',
+      onEnd: (evt) => {
+        if (evt.from !== evt.to) moverLead(evt.item.dataset.id, evt.to.dataset.etapa);
+      },
+    });
+  }
+}
+
+async function moverLead(id, status) {
+  const lead = estado.leads.find((l) => l.id === id);
+  if (!lead || !statusPorId[status] || statusDe(lead) === status) return renderQuadroLeads();
+  // Matrícula: abre o cadastro para informar o nome do aluno e a quantidade de matrículas.
+  if (status === 'matriculado') return abrirFormLead(lead, { status: 'matriculado' });
+  try {
+    await estado.store.atualizar(id, { status });
+    toast(`${lead.nome ? primeiroNome(lead.nome) : lead.telefone} → ${statusPorId[status].nome}`);
+  } catch (err) {
+    console.error(err);
+    toast(`Erro ao mover: ${err.message || err}`, 'erro');
+    renderQuadroLeads();
+  }
+}
+
+async function editarMeuNome() {
+  const atual = estado.usuario?.nome || '';
+  const nome = (prompt('Como você quer aparecer no painel? (ex.: "Atualizado por …" e placar de matrículas)', atual) || '').trim().slice(0, 60);
+  if (!nome || nome === atual) return;
+  try {
+    estado.usuario = await estado.store.salvarNome(nome);
+    renderUsuario();
+    renderPlacar();
+    toast('Nome atualizado');
+  } catch (err) {
+    console.error(err);
+    toast(
+      err.code === 'permission-denied' ? 'Sem permissão para salvar o nome: publique as regras mais recentes do Firestore.' : `Erro ao salvar o nome: ${err.message || err}`,
+      'erro',
+    );
+  }
 }
 
 // ---------------------------------------------------------------- formulários
@@ -602,17 +681,22 @@ function opcoesTipos(selecionado, rotuloVazio) {
   );
 }
 
-function abrirFormLead(lead) {
+function abrirFormLead(lead, opcoes = {}) {
   estado.editandoId = lead?.id || null;
+  estado.registrandoMatricula = opcoes.status === 'matriculado';
   const f = $('#formLead');
-  $('#dlgLeadTitulo').textContent = lead ? 'Editar lead' : 'Novo lead';
+  $('#dlgLeadTitulo').textContent = estado.registrandoMatricula ? 'Registrar matrícula' : lead ? 'Editar lead' : 'Novo lead';
   f.telefone.value = lead?.telefone || '';
-  f.status.innerHTML = STATUS.map(
-    (s) => `<option value="${s.id}" ${s.id === (lead?.status || 'andamento') ? 'selected' : ''}>${s.nome}</option>`,
-  ).join('');
+  f.nome.value = lead?.nome || '';
+  const st = opcoes.status || (lead ? statusDe(lead) : 'andamento');
+  f.status.innerHTML = STATUS.map((s) => `<option value="${s.id}" ${s.id === st ? 'selected' : ''}>${s.nome}</option>`).join('');
+  f.matriculas.value = lead?.matriculas || 1;
   f.obs.value = lead?.obs || '';
+  $('#campoMatriculas').hidden = st !== 'matriculado';
+  $('#leadDicaMatricula').hidden = !estado.registrandoMatricula;
+  $('#btnExcluirLead').hidden = !lead;
   $('#dlgLead').showModal();
-  f.telefone.focus();
+  (estado.registrandoMatricula ? f.nome : f.telefone).focus();
 }
 
 async function salvarLead(e) {
@@ -626,21 +710,37 @@ async function salvarLead(e) {
   }
   const id = estado.editandoId;
   const repetido = estado.leads.find((l) => l.id !== id && numeroWhats(l.telefone) === numeroWhats(telefone));
-  if (
-    repetido &&
-    !confirm(`Este WhatsApp já está cadastrado (status: ${statusPorId[repetido.status]?.nome || repetido.status}). Salvar mesmo assim?`)
-  ) {
+  if (repetido && !confirm(`Este WhatsApp já está cadastrado (${statusPorId[statusDe(repetido)].nome}). Salvar mesmo assim?`)) {
     return;
   }
-  const dados = { telefone, status: f.status.value, obs: f.obs.value.trim() };
+  const status = f.status.value;
+  const dados = { telefone, status, nome: f.nome.value.trim(), obs: f.obs.value.trim() };
+  if (status === 'matriculado') dados.matriculas = Math.min(20, Math.max(1, Math.round(Number(f.matriculas.value) || 1)));
+  const anterior = estado.leads.find((l) => l.id === id);
+  // Nova matrícula: quando o lead entra em "Matriculado" (registra data e quem matriculou, para o placar).
+  const novaMatricula = status === 'matriculado' && !(anterior && statusDe(anterior) === 'matriculado' && anterior.matriculadoEm);
+  estado.registrandoMatricula = false;
   $('#dlgLead').close();
   try {
-    if (id) await estado.store.atualizar(id, dados);
-    else await estado.store.criar(dados);
-    toast(id ? 'Lead atualizado' : 'Lead cadastrado');
+    if (id) await estado.store.atualizar(id, dados, { matricula: novaMatricula });
+    else await estado.store.criar(dados, { matricula: novaMatricula });
+    toast(novaMatricula ? '🎉 Matrícula registrada!' : id ? 'Lead atualizado' : 'Lead cadastrado');
   } catch (err) {
     console.error(err);
     toast(`Erro ao salvar: ${err.message || err}`, 'erro');
+    renderQuadroLeads();
+  }
+}
+
+async function excluirLead() {
+  const lead = estado.leads.find((l) => l.id === estado.editandoId);
+  if (!lead || !confirm(`Excluir o lead ${lead.nome || lead.telefone}? Essa ação não pode ser desfeita.`)) return;
+  $('#dlgLead').close();
+  try {
+    await estado.store.excluir(lead.id);
+    toast('Lead excluído');
+  } catch (err) {
+    toast(`Erro ao excluir: ${err.message || err}`, 'erro');
   }
 }
 
@@ -709,12 +809,15 @@ function exportarCsv() {
     const s = String(v ?? '');
     return `"${(/^[=+\-@\t\r]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
   };
-  const cabecalho = ['WhatsApp', 'Status', 'Observação', 'Criado em', 'Criado por', 'Atualizado em', 'Atualizado por'];
+  const cabecalho = ['Nome', 'WhatsApp', 'Status', 'Matrículas', 'Matriculado em', 'Observação', 'Criado em', 'Criado por', 'Atualizado em', 'Atualizado por'];
   const linhas = [...estado.leads]
     .sort((a, b) => (a.criadoEm || 0) - (b.criadoEm || 0))
     .map((l) => [
+      l.nome || '',
       l.telefone,
-      statusPorId[l.status]?.nome || l.status,
+      statusPorId[statusDe(l)].nome,
+      statusDe(l) === 'matriculado' ? qtdMatriculas(l) : '',
+      statusDe(l) === 'matriculado' ? dataHora(l.matriculadoEm || l.atualizadoEm) : '',
       l.obs,
       dataHora(l.criadoEm),
       l.criadoPor,
@@ -788,23 +891,25 @@ async function executarAcao(acao, el) {
       return;
     case 'sair':
       return store?.sair();
-    case 'filtro-status':
-      estado.filtroStatus = el.dataset.status;
-      return renderLeads();
     case 'novo-lead':
       return abrirFormLead(null);
     case 'editar-lead':
       return abrirFormLead(estado.leads.find((l) => l.id === el.dataset.id));
-    case 'excluir-lead': {
+    case 'excluir-lead':
+      return excluirLead();
+    case 'lead-avancar':
+    case 'lead-voltar': {
       const lead = estado.leads.find((l) => l.id === el.dataset.id);
-      if (!lead || !confirm(`Excluir o lead "${lead.nome}"? Essa ação não pode ser desfeita.`)) return;
-      try {
-        await store.excluir(lead.id);
-        toast('Lead excluído');
-      } catch (err) {
-        toast(`Erro ao excluir: ${err.message || err}`, 'erro');
-      }
-      return;
+      const destino = lead && STATUS[indiceStatus(statusDe(lead)) + (acao === 'lead-avancar' ? 1 : -1)];
+      return destino && moverLead(lead.id, destino.id);
+    }
+    case 'editar-nome':
+      return editarMeuNome();
+    case 'mes-anterior':
+    case 'mes-seguinte': {
+      const d = new Date(estado.mesPlacar.ano, estado.mesPlacar.mes + (acao === 'mes-anterior' ? -1 : 1), 1);
+      estado.mesPlacar = { ano: d.getFullYear(), mes: d.getMonth() };
+      return renderPlacar();
     }
     case 'msg-lead': {
       const lead = estado.leads.find((l) => l.id === el.dataset.id);
@@ -823,15 +928,13 @@ document.addEventListener('click', (e) => {
   if (el && el.tagName !== 'SELECT') executarAcao(el.dataset.acao, el);
 });
 
-document.addEventListener('change', async (e) => {
-  const el = e.target;
-  if (el.dataset?.acao !== 'mudar-status') return;
-  try {
-    await estado.store.atualizar(el.dataset.id, { status: el.value });
-    toast(`Status: ${statusPorId[el.value].nome}`);
-  } catch (err) {
-    toast(`Erro ao atualizar: ${err.message || err}`, 'erro');
-  }
+$('#formLead').status.addEventListener('change', (e) => {
+  $('#campoMatriculas').hidden = e.target.value !== 'matriculado';
+});
+// Fechou o cadastro sem salvar (ex.: arrastou para "Matriculado" e cancelou): o card volta para onde estava.
+$('#dlgLead').addEventListener('close', () => {
+  estado.registrandoMatricula = false;
+  if (!$('#leadsConteudo').hidden) renderQuadroLeads();
 });
 
 $('#buscaCurso').addEventListener('input', (e) => {
@@ -840,7 +943,7 @@ $('#buscaCurso').addEventListener('input', (e) => {
 });
 $('#buscaLead').addEventListener('input', (e) => {
   estado.buscaLead = e.target.value;
-  renderListaLeads();
+  renderQuadroLeads();
 });
 
 $('#formLead').addEventListener('submit', salvarLead);
@@ -863,7 +966,7 @@ for (const dlg of document.querySelectorAll('dialog')) {
 
 window.addEventListener('hashchange', () => mudarAba(location.hash.slice(1)));
 setInterval(() => {
-  if (estado.aba === 'leads' && !document.hidden && !$('#leadsConteudo').hidden) renderListaLeads();
+  if (estado.aba === 'leads' && !document.hidden && !$('#leadsConteudo').hidden) renderQuadroLeads();
 }, 60_000);
 
 // ---------------------------------------------------------------- início
@@ -964,6 +1067,12 @@ function abrirApp() {
   renderCampanha();
   prepararImagemCampanha();
   mudarAba(location.hash.slice(1) || 'cursos');
+
+  prepararArrastarLeads();
+  estado.store.ouvirPerfis?.((perfis) => {
+    estado.perfis = perfis;
+    if (!$('#leadsConteudo').hidden) renderPlacar();
+  });
 
   estado.semPermissao = false;
   estado.leads = [];

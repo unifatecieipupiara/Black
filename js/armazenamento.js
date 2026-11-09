@@ -1,6 +1,11 @@
 // Guarda e sincroniza os leads.
 // - Com Firebase configurado: login Google + Firestore (compartilhado em tempo real).
 // - Sem configuração: "modo demonstração", salvo só no navegador (localStorage).
+//
+// Perfis (coleção "perfis", um documento por usuário): nome de exibição editável,
+// usado em "Atualizado por …" e no placar de matrículas do mês.
+// Matrícula: ao marcar um lead como Matriculado, grava matriculadoEm (data) e
+// matriculadoPor (uid de quem matriculou) para o placar mensal.
 
 const VERSAO_FIREBASE = '13.1.0';
 
@@ -23,8 +28,25 @@ async function criarFirebase(config) {
   const auth = A.getAuth(app);
   const db = F.getFirestore(app);
   const colecao = F.collection(db, 'leads');
+  const perfis = F.collection(db, 'perfis');
   let usuarioAtual = null;
   const quem = () => usuarioAtual?.nome || usuarioAtual?.email || '';
+
+  // Carrega (ou cria) o perfil do usuário. Se as regras ainda não liberam "perfis", usa o nome do Google.
+  async function carregarPerfil(u) {
+    const padrao = u.displayName || u.email;
+    try {
+      const snap = await F.getDoc(F.doc(perfis, u.uid));
+      if (snap.exists() && snap.data().nome) return snap.data().nome;
+      await F.setDoc(F.doc(perfis, u.uid), { nome: padrao, email: String(u.email || '').toLowerCase() });
+    } catch (err) {
+      console.warn('Perfil:', err.code || err.message);
+    }
+    return padrao;
+  }
+
+  const marcarMatricula = (dados, opcoes) =>
+    opcoes?.matricula ? { ...dados, matriculadoEm: F.serverTimestamp(), matriculadoPor: usuarioAtual?.uid || '' } : dados;
 
   return {
     modo: 'firebase',
@@ -46,10 +68,31 @@ async function criarFirebase(config) {
     sair: () => A.signOut(auth),
 
     aoMudarUsuario(callback) {
-      return A.onAuthStateChanged(auth, (u) => {
-        usuarioAtual = u ? { nome: u.displayName || u.email, email: u.email } : null;
+      return A.onAuthStateChanged(auth, async (u) => {
+        if (!u) {
+          usuarioAtual = null;
+          callback(null);
+          return;
+        }
+        usuarioAtual = { uid: u.uid, nome: u.displayName || u.email, email: u.email };
+        usuarioAtual.nome = await carregarPerfil(u);
         callback(usuarioAtual);
       });
+    },
+
+    async salvarNome(nome) {
+      await F.setDoc(F.doc(perfis, usuarioAtual.uid), { nome, email: String(usuarioAtual.email || '').toLowerCase() });
+      usuarioAtual.nome = nome;
+      return usuarioAtual;
+    },
+
+    // Nomes de todos os usuários (uid → nome), para o placar de matrículas.
+    ouvirPerfis(aoReceber) {
+      return F.onSnapshot(
+        perfis,
+        (snap) => aoReceber(Object.fromEntries(snap.docs.map((d) => [d.id, d.data().nome || d.data().email || '']))),
+        (err) => console.warn('Perfis:', err.code || err.message),
+      );
     },
 
     ouvirLeads(aoReceber, aoErrar) {
@@ -59,20 +102,26 @@ async function criarFirebase(config) {
           aoReceber(
             snap.docs.map((d) => {
               const dados = d.data({ serverTimestamps: 'estimate' });
-              return { ...dados, id: d.id, criadoEm: paraMs(dados.criadoEm), atualizadoEm: paraMs(dados.atualizadoEm) };
+              return {
+                ...dados,
+                id: d.id,
+                criadoEm: paraMs(dados.criadoEm),
+                atualizadoEm: paraMs(dados.atualizadoEm),
+                matriculadoEm: paraMs(dados.matriculadoEm),
+              };
             }),
           ),
         aoErrar,
       );
     },
 
-    criar(dados) {
+    criar(dados, opcoes) {
       const agora = F.serverTimestamp();
-      return F.addDoc(colecao, { ...dados, criadoEm: agora, criadoPor: quem(), atualizadoEm: agora, atualizadoPor: quem() });
+      return F.addDoc(colecao, marcarMatricula({ ...dados, criadoEm: agora, criadoPor: quem(), atualizadoEm: agora, atualizadoPor: quem() }, opcoes));
     },
 
-    atualizar(id, dados) {
-      return F.updateDoc(F.doc(colecao, id), { ...dados, atualizadoEm: F.serverTimestamp(), atualizadoPor: quem() });
+    atualizar(id, dados, opcoes) {
+      return F.updateDoc(F.doc(colecao, id), marcarMatricula({ ...dados, atualizadoEm: F.serverTimestamp(), atualizadoPor: quem() }, opcoes));
     },
 
     excluir(id) {
@@ -93,18 +142,21 @@ async function criarFirebase(config) {
 
 function criarDemo() {
   const CHAVE = 'bf-leads-demo';
-  const usuario = { nome: 'Demonstração', email: '' };
-  const ouvintes = new Set();
-
-  const ler = () => {
+  const CHAVE_NOME = 'bf-nome-demo';
+  const ler = (k, padrao) => {
     try {
-      return JSON.parse(localStorage.getItem(CHAVE)) || [];
+      return JSON.parse(localStorage.getItem(k)) ?? padrao;
     } catch {
-      return [];
+      return padrao;
     }
   };
+  const usuario = { uid: 'demo', nome: ler(CHAVE_NOME, 'Demonstração'), email: '' };
+  const ouvintes = new Set();
+  const ouvintesPerfis = new Set();
+
+  const lerLeads = () => ler(CHAVE, []);
   const avisar = () => {
-    const lista = ler();
+    const lista = lerLeads();
     ouvintes.forEach((fn) => fn(lista));
   };
   const gravar = (lista) => {
@@ -113,6 +165,7 @@ function criarDemo() {
   };
   const novoId = () =>
     globalThis.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  const marcarMatricula = (dados, opcoes) => (opcoes?.matricula ? { ...dados, matriculadoEm: Date.now(), matriculadoPor: usuario.uid } : dados);
 
   window.addEventListener('storage', (e) => {
     if (e.key === CHAVE) avisar();
@@ -126,20 +179,31 @@ function criarDemo() {
       setTimeout(() => callback(usuario));
       return () => {};
     },
+    async salvarNome(nome) {
+      usuario.nome = nome;
+      localStorage.setItem(CHAVE_NOME, JSON.stringify(nome));
+      ouvintesPerfis.forEach((fn) => fn({ [usuario.uid]: nome }));
+      return usuario;
+    },
+    ouvirPerfis(aoReceber) {
+      ouvintesPerfis.add(aoReceber);
+      setTimeout(() => aoReceber({ [usuario.uid]: usuario.nome }));
+      return () => ouvintesPerfis.delete(aoReceber);
+    },
     ouvirLeads(aoReceber) {
       ouvintes.add(aoReceber);
-      setTimeout(() => aoReceber(ler()));
+      setTimeout(() => aoReceber(lerLeads()));
       return () => ouvintes.delete(aoReceber);
     },
-    async criar(dados) {
+    async criar(dados, opcoes) {
       const agora = Date.now();
-      gravar([...ler(), { ...dados, id: novoId(), criadoEm: agora, criadoPor: usuario.nome, atualizadoEm: agora, atualizadoPor: usuario.nome }]);
+      gravar([...lerLeads(), marcarMatricula({ ...dados, id: novoId(), criadoEm: agora, criadoPor: usuario.nome, atualizadoEm: agora, atualizadoPor: usuario.nome }, opcoes)]);
     },
-    async atualizar(id, dados) {
-      gravar(ler().map((l) => (l.id === id ? { ...l, ...dados, atualizadoEm: Date.now(), atualizadoPor: usuario.nome } : l)));
+    async atualizar(id, dados, opcoes) {
+      gravar(lerLeads().map((l) => (l.id === id ? marcarMatricula({ ...l, ...dados, atualizadoEm: Date.now(), atualizadoPor: usuario.nome }, opcoes) : l)));
     },
     async excluir(id) {
-      gravar(ler().filter((l) => l.id !== id));
+      gravar(lerLeads().filter((l) => l.id !== id));
     },
     async lerChave() {
       return localStorage.getItem('bf-chave-demo');

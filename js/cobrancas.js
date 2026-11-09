@@ -205,6 +205,11 @@ function filtrados() {
 
 function cardAluno(a) {
   const i = indiceEtapa(a.etapa);
+  // A linha "Planilha: …" (vencimentos e total) fica só na edição, para o card ficar menor.
+  const obsVisivel = String(a.obs || '')
+    .split('\n')
+    .filter((l) => l.trim() && !l.startsWith('Planilha:'))
+    .join('\n');
   const qtd = Number(a.qtd) || 0;
   return `
     <article class="cob-card" data-id="${esc(a.id)}">
@@ -221,7 +226,7 @@ function cardAluno(a) {
           ? `<a class="cob-tel" href="${esc(linkWhats(a.telefone))}"${alvoWhats}>📱 ${esc(a.telefone)}</a>`
           : `<button type="button" class="cob-sem-tel" data-acao="editar" data-id="${esc(a.id)}">📱 Adicionar WhatsApp</button>`
       }
-      ${a.obs ? `<p class="cob-obs">${esc(a.obs)}</p>` : ''}
+      ${obsVisivel ? `<p class="cob-obs">${esc(obsVisivel)}</p>` : ''}
       ${a.atualizadoEm ? `<p class="cob-meta">Atualizado ${esc(tempoRelativo(a.atualizadoEm))}</p>` : ''}
       <div class="cob-acoes">
         <button type="button" class="btn btn-mini btn-primario" data-acao="msg" data-id="${esc(a.id)}">💬 Mensagem</button>

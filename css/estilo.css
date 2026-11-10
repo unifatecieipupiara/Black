@@ -538,6 +538,7 @@ dialog.dlg-largo { width: min(900px, calc(100% - 24px)); }
 .imp-tabela th, .imp-tabela td { padding: 6px 8px; border-bottom: 1px solid var(--borda); text-align: left; vertical-align: top; }
 .imp-tabela th { background: #f7f8fa; position: sticky; top: 0; font-size: 0.78rem; color: var(--suave); }
 .imp-tabela td.num { text-align: right; white-space: nowrap; }
+.imp-tabela td.imp-tel { white-space: nowrap; }
 .imp-tabela select { font: inherit; font-size: 0.82rem; padding: 3px 4px; border-radius: 6px; border: 1px solid #cfd4da; }
 .imp-aviso { font-size: 0.72rem; color: #b45309; }
 .imp-novo { font-size: 0.78rem; font-weight: 700; color: #1e40af; }

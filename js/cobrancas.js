@@ -451,6 +451,58 @@ const cardsPorNome = () => {
   return mapa;
 };
 
+// Células da planilha: data (10/12/2025), valor (R$ 99,00 · 99,00 · 1.234,56), telefone.
+const ehData = (c) => /^\d{1,2}\/\d{1,2}\/(\d{2}|\d{4})$/.test(c);
+function valorDe(c) {
+  const t = String(c || '').replace(/^R\$\s*/i, '');
+  if (/^\d{1,3}(\.\d{3})+,\d{2}$|^\d+,\d{2}$/.test(t)) return Number(t.replace(/\./g, '').replace(',', '.'));
+  if (/^\d+\.\d{2}$/.test(t)) return Number(t);
+  if (/^R\$/i.test(c) && /^\d+$/.test(t)) return Number(t);
+  return null;
+}
+const ehTelefone = (c) => digitos(c).length >= 8 && !ehData(c) && valorDe(c) === null;
+const ehTexto = (c) => Boolean(c) && /[a-zà-ú]/i.test(c) && !ehData(c) && valorDe(c) === null && !ehTelefone(c);
+const ehStatus = (c) => /atras|aberto|vencid|pendent|inadimpl/i.test(c);
+// Na célula com mais de um número, fica o primeiro.
+const telefoneDaCelula = (c) => formatarTelefone(String(c || '').split(/[\/,;|]|\se\s/)[0].replace(/\(?[a-zà-ú][^)]*\)?/gi, '')).slice(0, 40);
+
+// Lê uma linha em um dos formatos aceitos:
+//  - Graduação: Polo, Aluno, Telefone, Vencimento, Valor
+//  - Antigo:    Status, Vencimento, Valor, Aluno, Filial
+function lerLinha(celulas) {
+  const iData = celulas.findIndex(ehData);
+  const iValor = celulas.findIndex((c, i) => i !== iData && valorDe(c) !== null);
+  if (iData < 0 || iValor < 0) return null;
+  const antes = celulas.slice(0, Math.min(iData, iValor));
+  const textosAntes = antes.filter(ehTexto);
+  let nome = '';
+  let filial = '';
+  let telefone = '';
+  let formato = 'graduacao';
+  const soStatusAntes = !textosAntes.length || (textosAntes.length === 1 && ehStatus(textosAntes[0]));
+  if (textosAntes.length >= 2) {
+    [filial, nome] = textosAntes;
+    telefone = antes.find(ehTelefone) || '';
+  } else if (soStatusAntes && iValor === iData + 1 && ehTexto(celulas[iValor + 1])) {
+    formato = 'antigo';
+    nome = celulas[iValor + 1];
+    filial = celulas[iValor + 2] || '';
+  } else if (textosAntes.length === 1 && !soStatusAntes) {
+    nome = textosAntes[0];
+    telefone = antes.find(ehTelefone) || '';
+  }
+  if (!nome || /\d/.test(nome)) return null;
+  let [d, m, a] = celulas[iData].split('/');
+  if (a.length === 2) a = `20${a}`;
+  return {
+    nome: nome.replace(/\s+/g, ' '),
+    filial,
+    telefone: telefone ? telefoneDaCelula(telefone) : '',
+    formato,
+    vencimento: `${a}-${m.padStart(2, '0')}-${d.padStart(2, '0')}|${valorDe(celulas[iValor]).toFixed(2)}`,
+  };
+}
+
 function interpretarPlanilha(texto) {
   const grupos = new Map();
   let ignoradas = 0;
@@ -458,27 +510,26 @@ function interpretarPlanilha(texto) {
     const linha = bruta.trim();
     if (!linha) continue;
     const celulas = (linha.includes('\t') ? linha.split('\t') : linha.split(/\s{2,}/)).map((c) => c.trim());
-    const iData = celulas.findIndex((c) => /^\d{2}\/\d{2}\/\d{4}$/.test(c));
-    const iValor = celulas.findIndex((c) => /^R\$\s*[\d.]+,\d{2}$/.test(c));
-    const nome = iValor >= 0 ? celulas[iValor + 1] : '';
-    if (iData < 0 || iValor < 0 || !nome || /\d/.test(nome)) {
+    const l = lerLinha(celulas);
+    if (!l) {
       ignoradas += 1; // cabeçalho ou linha fora do formato
       continue;
     }
-    const valor = Number(celulas[iValor].replace(/[^\d,]/g, '').replace(',', '.'));
-    const [d, m, a] = celulas[iData].split('/');
-    const chave = chaveNome(nome);
-    if (!grupos.has(chave)) grupos.set(chave, { nome: nome.replace(/\s+/g, ' '), polo: poloDaFilial(celulas[iValor + 2] || ''), vencimentos: [] });
-    grupos.get(chave).vencimentos.push(`${a}-${m}-${d}|${valor.toFixed(2)}`);
+    const chave = chaveNome(l.nome);
+    if (!grupos.has(chave)) grupos.set(chave, { nome: l.nome, polo: poloDaFilial(l.filial), telefone: '', formato: l.formato, vencimentos: [] });
+    const g = grupos.get(chave);
+    if (!g.telefone && l.telefone) g.telefone = l.telefone;
+    g.vencimentos.push(l.vencimento);
   }
 
   const existentes = cardsPorNome();
   const alunos = [...grupos.values()].map((g) => {
     const daPlanilha = resumoVencimentos(g.vencimentos);
     const cards = existentes.get(chaveNome(g.nome)) || [];
-    // Sugestão: mensalidades de R$ 29,90 costumam ser de Pós-Graduação (confira na prévia).
-    const sugerePos = Math.abs(daPlanilha.total / daPlanilha.qtd - 29.9) < 0.005;
-    const base = { nome: g.nome, polo: g.polo, tipo: sugerePos ? 'pos' : 'graduacao', sugerePos, daPlanilha };
+    // Planilha antiga: mensalidades de R$ 29,90 costumam ser de Pós-Graduação (confira na prévia).
+    // A planilha de Graduação (Polo, Aluno, Telefone…) já vem como Graduação.
+    const sugerePos = g.formato === 'antigo' && Math.abs(daPlanilha.total / daPlanilha.qtd - 29.9) < 0.005;
+    const base = { nome: g.nome, polo: g.polo, telefone: g.telefone, tipo: sugerePos ? 'pos' : 'graduacao', sugerePos, daPlanilha };
     if (!cards.length) return { ...base, acao: 'novo', final: daPlanilha, incluir: true };
 
     const alvo = escolherPrincipal(cards);
@@ -487,8 +538,10 @@ function interpretarPlanilha(texto) {
     // Card sem vencimentos guardados (cadastro manual ou importação antiga): fica com a maior quantidade.
     if (!guardados.length) final.qtd = Math.max(Number(alvo.qtd) || 0, final.qtd);
     const novos = daPlanilha.vencimentos.filter((v) => !guardados.includes(v)).length;
-    const muda = final.qtd !== (Number(alvo.qtd) || 0) || !guardados.length || novos > 0;
-    return { ...base, acao: muda ? 'unir' : 'igual', alvo, novos, semHistorico: !guardados.length, repetidos: cards.length, final, incluir: muda };
+    // O card fica com o WhatsApp que já tem; só recebe o da planilha se estiver sem.
+    const ganhaTelefone = !alvo.telefone && Boolean(g.telefone);
+    const muda = final.qtd !== (Number(alvo.qtd) || 0) || !guardados.length || novos > 0 || ganhaTelefone;
+    return { ...base, acao: muda ? 'unir' : 'igual', alvo, novos, ganhaTelefone, semHistorico: !guardados.length, repetidos: cards.length, final, incluir: muda };
   });
   alunos.sort((x, y) => x.nome.localeCompare(y.nome, 'pt-BR'));
   return { alunos, ignoradas };
@@ -512,15 +565,18 @@ function situacao(a) {
     ? 'passa a guardar os vencimentos da planilha'
     : a.novos
       ? `+${a.novos} ${a.novos === 1 ? 'mensalidade nova' : 'mensalidades novas'}`
-      : 'atualiza a quantidade';
-  return `<span class="imp-unir">Unir com o card existente</span><br><span class="imp-aviso">${detalhe} → ${a.final.qtd} no total</span>${rep}`;
+      : a.final.qtd !== (Number(a.alvo.qtd) || 0)
+        ? 'atualiza a quantidade'
+        : '';
+  const partes = [detalhe && `${detalhe} → ${a.final.qtd} no total`, a.ganhaTelefone && 'recebe o WhatsApp da planilha'].filter(Boolean);
+  return `<span class="imp-unir">Unir com o card existente</span><br><span class="imp-aviso">${partes.join(' · ')}</span>${rep}`;
 }
 
 function lerPlanilha() {
   const { alunos, ignoradas } = interpretarPlanilha($('#impTexto').value);
   previaImportacao = alunos;
   if (!alunos.length) {
-    $('#impPrevia').innerHTML = '<p class="acesso-erro">Não encontrei nenhuma linha no formato esperado (vencimento, valor em R$, nome do aluno e filial).</p>';
+    $('#impPrevia').innerHTML = '<p class="acesso-erro">Não encontrei nenhuma linha no formato esperado (Polo, Aluno, Telefone, Vencimento e Valor).</p>';
     $('#impConfirmar').disabled = true;
     return;
   }
@@ -537,6 +593,7 @@ function lerPlanilha() {
       <tr class="${a.acao === 'igual' ? 'imp-linha-igual' : ''}">
         <td><input type="checkbox" data-imp="incluir" data-i="${i}" ${a.incluir ? 'checked' : ''} ${a.acao === 'igual' ? 'disabled' : ''} aria-label="Importar ${esc(a.nome)}"></td>
         <td><strong>${esc(a.nome)}</strong></td>
+        <td class="imp-tel">${a.acao !== 'novo' && a.alvo.telefone ? esc(a.alvo.telefone) : a.telefone ? esc(a.telefone) : '—'}</td>
         <td>${situacao(a)}</td>
         <td class="num">${a.daPlanilha.qtd}</td>
         <td class="num">${reais(a.daPlanilha.total)}</td>
@@ -551,10 +608,10 @@ function lerPlanilha() {
   $('#impPrevia').innerHTML = `
     <p class="pequeno"><strong>${alunos.length} alunos</strong> em ${linhasPlanilha} mensalidades${ignoradas ? ` (${ignoradas} linha(s) ignorada(s), como o cabeçalho)` : ''}:
       ${n('novo')} novo(s), ${n('unir')} para unir com cards existentes, ${n('igual')} já atualizado(s).
-      Novos entram em "Entrar em contato", sem WhatsApp; os existentes mantêm etapa, WhatsApp e anotações.</p>
+      Novos entram em "Entrar em contato", com o WhatsApp da planilha; os existentes mantêm etapa, WhatsApp e anotações (quem estiver sem WhatsApp recebe o da planilha).</p>
     <div class="imp-tabela-caixa">
       <table class="imp-tabela">
-        <thead><tr><th></th><th>Aluno</th><th>Situação</th><th>Mens.</th><th>Total</th><th>Vencimentos</th><th>Polo</th><th>Curso</th></tr></thead>
+        <thead><tr><th></th><th>Aluno</th><th>WhatsApp</th><th>Situação</th><th>Mens.</th><th>Total</th><th>Vencimentos</th><th>Polo</th><th>Curso</th></tr></thead>
         <tbody>${linhas}</tbody>
       </table>
     </div>`;
@@ -590,7 +647,7 @@ async function confirmarImportacao() {
       if (a.acao === 'novo') {
         await F.addDoc(colecao, {
           nome: a.nome,
-          telefone: '',
+          telefone: a.telefone || '',
           qtd: a.final.qtd,
           polo: a.polo,
           tipo: a.tipo,
@@ -606,6 +663,7 @@ async function confirmarImportacao() {
           qtd: a.final.qtd,
           vencimentos: a.final.vencimentos,
           obs: obsComResumo(a.alvo.obs, a.final),
+          ...(a.ganhaTelefone ? { telefone: a.telefone } : {}),
           atualizadoEm: F.serverTimestamp(),
         });
         unidos += 1;

@@ -104,9 +104,9 @@
   <dialog id="dlgImportar" aria-labelledby="dlgImportarTitulo" class="dlg-largo">
     <div class="form">
       <h3 id="dlgImportarTitulo">Importar alunos da planilha</h3>
-      <p class="pequeno">Copie as linhas da planilha de inadimplência (Status, Data de Vencimento, Valor, Aluno, Filial) e cole abaixo. Cada linha é uma mensalidade; o sistema junta as linhas de cada aluno e conta quantas estão em atraso.</p>
+      <p class="pequeno">Copie as linhas da planilha de inadimplência e cole abaixo. Planilha de Graduação, nesta ordem: <strong>Polo, Aluno, Telefone, Vencimento, Valor</strong> (a planilha antiga, com Status, Data de Vencimento, Valor, Aluno e Filial, também funciona). Cada linha é uma mensalidade; o sistema junta as linhas de cada aluno e conta quantas estão em atraso.</p>
       <label>Linhas da planilha
-        <textarea id="impTexto" rows="6" placeholder="Em Atraso	10/12/2025	R$ 65,78	Nome do Aluno	IPUPIARA - BA"></textarea>
+        <textarea id="impTexto" rows="6" placeholder="IPUPIARA - BA	Nome do Aluno	(77) 99999-9999	10/12/2025	R$ 65,78"></textarea>
       </label>
       <div class="form-botoes" style="justify-content:flex-start">
         <button type="button" class="btn" data-acao="imp-ler">🔍 Ler planilha</button>

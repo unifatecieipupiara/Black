@@ -117,6 +117,27 @@ Muito obrigada! A parte financeira da sua pós-graduação está regularizada. C
   },
 };
 
+// Mensagens para situações fora do funil. "tipos": em quais tipos de curso aparecem.
+const MENSAGENS_EXTRAS = [
+  {
+    // Aluno que só fez a matrícula e sumiu: não estuda e não paga.
+    // Quem não acessa o curso tem os boletos estornados ao cancelar.
+    id: 'sem-acesso',
+    nome: 'Matriculou e não acessou',
+    tipos: ['graduacao'], // Graduação e 2ª Graduação
+    texto: `Olá, {nome}! Tudo bem? 😊
+
+Aqui é da *{polo}*. Vi que você fez a matrícula no seu *curso*, mas ainda não começou a acessar as aulas, e quis passar para saber como você está.
+
+Se quiser *retomar os estudos*, eu te ajudo com o acesso e com os primeiros passos. 📚
+
+Se preferir *cancelar*, também resolvo por aqui: como você ainda não acessou o curso, os boletos são *estornados* e você *não paga nada*.
+
+Me conta: você quer continuar ou prefere cancelar? 💛`,
+  },
+];
+const extrasDe = (aluno) => MENSAGENS_EXTRAS.filter((m) => m.tipos.includes(tipoDe(aluno).id));
+
 // "1 mensalidade em aberto" / "3 mensalidades em aberto" (sem artigo).
 function qtdSemArtigo(qtd) {
   if (qtd === 1) return '1 mensalidade em aberto';
@@ -138,7 +159,8 @@ function montarMensagem(aluno, etapa) {
     qtdTexto: qtdSemArtigo(Number(aluno?.qtd) || 0),
     polo: poloDe(aluno).nome,
   };
-  return (MENSAGENS[tipoDe(aluno).id]?.[etapa] || '').replace(/\{(\w+)\}/g, (m, k) => (k in valores ? valores[k] : m));
+  const modelo = extrasDe(aluno).find((m) => m.id === etapa)?.texto ?? MENSAGENS[tipoDe(aluno).id]?.[etapa] ?? '';
+  return modelo.replace(/\{(\w+)\}/g, (m, k) => (k in valores ? valores[k] : m));
 }
 
 // ---------------------------------------------------------------- estado
@@ -737,7 +759,12 @@ async function juntarRepetidos() {
 function abrirMensagem(aluno) {
   estado.msgAlunoId = aluno.id;
   $('#dlgMsgTitulo').textContent = `Mensagem para ${primeiroNome(aluno.nome)} · ${tipoDe(aluno).curto}`;
-  $('#msgEtapa').innerHTML = ETAPAS.map((e) => `<option value="${e.id}" ${e.id === aluno.etapa ? 'selected' : ''}>${esc(e.nome)}</option>`).join('');
+  const opcao = (id, nome) => `<option value="${id}" ${id === aluno.etapa ? 'selected' : ''}>${esc(nome)}</option>`;
+  const extras = extrasDe(aluno);
+  $('#msgEtapa').innerHTML = extras.length
+    ? `<optgroup label="Etapas do funil">${ETAPAS.map((e) => opcao(e.id, e.nome)).join('')}</optgroup>
+       <optgroup label="Outras situações">${extras.map((m) => opcao(m.id, m.nome)).join('')}</optgroup>`
+    : ETAPAS.map((e) => opcao(e.id, e.nome)).join('');
   $('#msgTelefone').value = aluno.telefone || '';
   atualizarMensagem();
   $('#dlgMsg').showModal();

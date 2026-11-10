@@ -110,6 +110,7 @@ const estado = {
   semPermissao: false,
   leads: [],
   perfis: {},
+  perfisCarregados: false,
   mesPlacar: { ano: new Date().getFullYear(), mes: new Date().getMonth() },
   buscaLead: '',
   editandoId: null,
@@ -640,6 +641,28 @@ async function moverLead(id, status) {
   }
 }
 
+// Leads guardam o nome de quem criou/atualizou como texto. Quando esse texto é
+// um nome antigo do usuário (nome do Google, e-mail ou nome anterior do perfil),
+// troca pelo nome atual. Cada usuário corrige os próprios nomes ao abrir o painel.
+const autorCorrigido = new Set();
+function corrigirMeuNomeNosLeads() {
+  const u = estado.usuario;
+  if (!u?.nome || !estado.store?.corrigirAutor || !estado.perfisCarregados || estado.carregandoLeads) return;
+  // Não mexe em nomes que hoje pertencem a outra pessoa da equipe.
+  const deOutros = new Set(Object.entries(estado.perfis).filter(([uid]) => uid !== u.uid).map(([, nome]) => nome));
+  const antigos = new Set((u.apelidos || []).filter((n) => n && n !== u.nome && !deOutros.has(n)));
+  if (!antigos.size) return;
+  for (const l of estado.leads) {
+    if (autorCorrigido.has(l.id)) continue;
+    const campos = {};
+    if (antigos.has(l.criadoPor)) campos.criadoPor = u.nome;
+    if (antigos.has(l.atualizadoPor)) campos.atualizadoPor = u.nome;
+    if (!Object.keys(campos).length) continue;
+    autorCorrigido.add(l.id); // uma tentativa por lead (evita repetir se a gravação falhar)
+    estado.store.corrigirAutor(l.id, campos).catch((err) => console.warn('Nome no lead:', err.code || err.message));
+  }
+}
+
 async function editarMeuNome() {
   const atual = estado.usuario?.nome || '';
   const nome = (prompt('Como você quer aparecer no painel? (ex.: "Atualizado por …" e placar de matrículas)', atual) || '').trim().slice(0, 60);
@@ -648,6 +671,8 @@ async function editarMeuNome() {
     estado.usuario = await estado.store.salvarNome(nome);
     renderUsuario();
     renderPlacar();
+    autorCorrigido.clear();
+    corrigirMeuNomeNosLeads();
     toast('Nome atualizado');
   } catch (err) {
     console.error(err);
@@ -1071,7 +1096,9 @@ function abrirApp() {
   prepararArrastarLeads();
   estado.store.ouvirPerfis?.((perfis) => {
     estado.perfis = perfis;
+    estado.perfisCarregados = true;
     if (!$('#leadsConteudo').hidden) renderPlacar();
+    corrigirMeuNomeNosLeads();
   });
 
   estado.semPermissao = false;
@@ -1083,6 +1110,7 @@ function abrirApp() {
       estado.leads = leads;
       estado.carregandoLeads = false;
       renderLeads();
+      corrigirMeuNomeNosLeads();
     },
     (err) => {
       console.error(err);

@@ -6,6 +6,8 @@
 // usado em "Atualizado por …" e no placar de matrículas do mês.
 // Matrícula: ao marcar um lead como Matriculado, grava matriculadoEm (data) e
 // matriculadoPor (uid de quem matriculou) para o placar mensal.
+// "apelidos" do usuário: nomes antigos dele (nome do Google, e-mail e nomes
+// anteriores do perfil). O painel troca esses nomes pelo atual nos leads.
 
 const VERSAO_FIREBASE = '13.1.0';
 
@@ -74,7 +76,7 @@ async function criarFirebase(config) {
           callback(null);
           return;
         }
-        usuarioAtual = { uid: u.uid, nome: u.displayName || u.email, email: u.email };
+        usuarioAtual = { uid: u.uid, nome: u.displayName || u.email, email: u.email, apelidos: [u.displayName, u.email].filter(Boolean) };
         usuarioAtual.nome = await carregarPerfil(u);
         callback(usuarioAtual);
       });
@@ -82,6 +84,7 @@ async function criarFirebase(config) {
 
     async salvarNome(nome) {
       await F.setDoc(F.doc(perfis, usuarioAtual.uid), { nome, email: String(usuarioAtual.email || '').toLowerCase() });
+      if (usuarioAtual.nome && usuarioAtual.nome !== nome) usuarioAtual.apelidos.push(usuarioAtual.nome);
       usuarioAtual.nome = nome;
       return usuarioAtual;
     },
@@ -128,6 +131,11 @@ async function criarFirebase(config) {
       return F.deleteDoc(F.doc(colecao, id));
     },
 
+    // Troca só o nome de "Criado por"/"Atualizado por" (a data de atualização não muda).
+    corrigirAutor(id, campos) {
+      return F.updateDoc(F.doc(colecao, id), campos);
+    },
+
     // Chave que abre os dados da campanha (config/acesso → campo "chave").
     async lerChave() {
       const snap = await F.getDoc(F.doc(db, 'config', 'acesso'));
@@ -150,7 +158,7 @@ function criarDemo() {
       return padrao;
     }
   };
-  const usuario = { uid: 'demo', nome: ler(CHAVE_NOME, 'Demonstração'), email: '' };
+  const usuario = { uid: 'demo', nome: ler(CHAVE_NOME, 'Demonstração'), email: '', apelidos: ['Demonstração'] };
   const ouvintes = new Set();
   const ouvintesPerfis = new Set();
 
@@ -180,6 +188,7 @@ function criarDemo() {
       return () => {};
     },
     async salvarNome(nome) {
+      if (usuario.nome !== nome) usuario.apelidos.push(usuario.nome);
       usuario.nome = nome;
       localStorage.setItem(CHAVE_NOME, JSON.stringify(nome));
       ouvintesPerfis.forEach((fn) => fn({ [usuario.uid]: nome }));
@@ -204,6 +213,9 @@ function criarDemo() {
     },
     async excluir(id) {
       gravar(lerLeads().filter((l) => l.id !== id));
+    },
+    async corrigirAutor(id, campos) {
+      gravar(lerLeads().map((l) => (l.id === id ? { ...l, ...campos } : l)));
     },
     async lerChave() {
       return localStorage.getItem('bf-chave-demo');

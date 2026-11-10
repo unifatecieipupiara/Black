@@ -64,7 +64,7 @@ service cloud.firestore {
         && d.nome is string && d.nome.size() > 0 && d.nome.size() <= 200
         && d.telefone is string && d.telefone.size() <= 40
         && d.qtd is int && d.qtd >= 0 && d.qtd <= 120
-        && d.etapa in ['contatar', 'negociacao', 'aguardando', 'finalizado']
+        && d.etapa in ['contatar', 'negociacao', 'aguardando', 'finalizado', 'cancelado']
         && (!('polo' in d) || d.polo in ['ipupiara', 'barra-do-mendes'])
         && (!('tipo' in d) || d.tipo in ['graduacao', 'pos'])
         && (!('vencimentos' in d) || (d.vencimentos is list && d.vencimentos.size() <= 240))

@@ -27,10 +27,10 @@ Para consultar a chave: Firebase → Firestore Database → coleção `config` �
 ## Cobranças (só a gestora)
 
 A página [`cobrancas.html`](cobrancas.html) é um funil de cobrança (Entrar em
-contato → Em negociação → Aguardando pagamento → Finalizado), com cadastro do aluno (nome,
+contato → Em negociação → Aguardando pagamento → Finalizado, além de Cancelado), com cadastro do aluno (nome,
 WhatsApp, mensalidades em atraso, polo, tipo de curso e observação) e mensagem pronta para cada
 etapa: Graduação/2ª Graduação usam o **Feirão da Negociação**; Pós-Graduação tem mensagens próprias. Para Graduação/2ª Graduação, em "Outras
-situações" há a mensagem para quem **matriculou e não acessou** (retornar ao curso ou cancelar sem pagar nada,
+situações" há a mensagem **Evasão**, para quem matriculou e não acessou (retornar ao curso ou cancelar sem pagar nada,
 pois os boletos de quem não acessou são estornados). Os cards podem
 ser arrastados entre as etapas (no celular, segure um instante antes de arrastar).
 

@@ -51,7 +51,10 @@ const ETAPAS = [
   { id: 'negociacao', nome: 'Em negociação' },
   { id: 'aguardando', nome: 'Aguardando pagamento' },
   { id: 'finalizado', nome: 'Finalizado' },
+  { id: 'cancelado', nome: 'Cancelado' },
 ];
+// Etapas que não contam em "Mensalidades em aberto".
+const ETAPAS_ENCERRADAS = ['finalizado', 'cancelado'];
 const etapaPorId = Object.fromEntries(ETAPAS.map((e) => [e.id, e]));
 const indiceEtapa = (id) => ETAPAS.findIndex((e) => e.id === id);
 
@@ -86,6 +89,12 @@ Se precisar de alguma ajuda, é só me chamar!`,
     finalizado: `{nome}, pagamento confirmado! 🎉
 
 Muito obrigada pela confiança. Agora é seguir firme nos estudos, e conte sempre com a gente aqui no *{polo}*! 💛`,
+
+    cancelado: `Oi, {nome}! Tudo bem? 😊
+
+Conforme conversamos, o cancelamento da sua matrícula foi encaminhado. ✅
+
+Se em algum momento quiser voltar a estudar, as portas estão abertas. Conte sempre com a gente aqui no *{polo}*! 💛`,
   },
 
   // Pós-Graduação: não participa do Feirão. Motivo do contato: parte financeira;
@@ -114,6 +123,12 @@ Se precisar que eu reenvie algum boleto, é só me chamar!`,
     finalizado: `{nome}, pagamento confirmado! 🎉
 
 Muito obrigada! A parte financeira da sua pós-graduação está regularizada. Conte sempre com a gente aqui no *{polo}*! 💛`,
+
+    cancelado: `Oi, {nome}! Tudo bem? 😊
+
+Conforme conversamos, o cancelamento da sua *pós-graduação* foi encaminhado. ✅
+
+Se em algum momento quiser retomar os estudos, as portas estão abertas. Conte sempre com a gente aqui no *{polo}*! 💛`,
   },
 };
 
@@ -123,7 +138,7 @@ const MENSAGENS_EXTRAS = [
     // Aluno que só fez a matrícula e sumiu: não estuda e não paga.
     // Quem não acessa o curso tem os boletos estornados ao cancelar.
     id: 'sem-acesso',
-    nome: 'Matriculou e não acessou',
+    nome: 'Evasão',
     tipos: ['graduacao'], // Graduação e 2ª Graduação
     texto: `Olá, {nome}! Tudo bem? 😊
 
@@ -287,11 +302,11 @@ function renderResumo() {
   renderPolos();
   const base = doPolo();
   const conta = (id) => base.filter((a) => a.etapa === id).length;
-  const emAberto = base.filter((a) => a.etapa !== 'finalizado').reduce((s, a) => s + (Number(a.qtd) || 0), 0);
+  const emAberto = base.filter((a) => !ETAPAS_ENCERRADAS.includes(a.etapa)).reduce((s, a) => s + (Number(a.qtd) || 0), 0);
   $('#cobResumo').innerHTML = `
     <div class="cob-resumo-item"><span class="resumo-n">${base.length}</span><span class="resumo-nome">Alunos</span></div>
     ${ETAPAS.map((e) => `<div class="cob-resumo-item et-${e.id}"><span class="resumo-n">${conta(e.id)}</span><span class="resumo-nome">${esc(e.nome)}</span></div>`).join('')}
-    <div class="cob-resumo-item destaque"><span class="resumo-n">${emAberto}</span><span class="resumo-nome" title="Soma das mensalidades em atraso dos alunos que ainda não finalizaram">Mensalidades em aberto</span></div>`;
+    <div class="cob-resumo-item destaque"><span class="resumo-n">${emAberto}</span><span class="resumo-nome" title="Soma das mensalidades em atraso dos alunos que não estão em Finalizado nem em Cancelado">Mensalidades em aberto</span></div>`;
 }
 
 function renderQuadro() {

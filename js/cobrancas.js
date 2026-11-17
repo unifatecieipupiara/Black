@@ -15,8 +15,6 @@ import {
   numeroWhats,
   NO_ANDROID,
   linkWhats,
-  alvoWhats,
-  tempoRelativo,
   primeiroNome,
 } from './util.js';
 
@@ -254,7 +252,9 @@ function filtrados() {
 
 function cardAluno(a) {
   const i = indiceEtapa(a.etapa);
-  // A linha "Planilha: …" (vencimentos e total) fica só na edição, para o card ficar menor.
+  // Para o card ficar menor, o WhatsApp, a data de atualização e a linha "Planilha: …"
+  // (vencimentos e total) não aparecem aqui: ficam salvos e visíveis ao editar o cadastro.
+  // O WhatsApp também é usado na tela de mensagem.
   const obsVisivel = String(a.obs || '')
     .split('\n')
     .filter((l) => l.trim() && !l.startsWith('Planilha:'))
@@ -270,13 +270,7 @@ function cardAluno(a) {
         <span class="cob-polo polo-${esc(poloDe(a).id)}">📍 ${esc(poloDe(a).curto)}</span>
         <span class="cob-tipo tipo-${esc(tipoDe(a).id)}">🎓 ${esc(tipoDe(a).curto)}</span>
       </div>
-      ${
-        a.telefone
-          ? `<a class="cob-tel" href="${esc(linkWhats(a.telefone))}"${alvoWhats}>📱 ${esc(a.telefone)}</a>`
-          : `<button type="button" class="cob-sem-tel" data-acao="editar" data-id="${esc(a.id)}">📱 Adicionar WhatsApp</button>`
-      }
       ${obsVisivel ? `<p class="cob-obs">${esc(obsVisivel)}</p>` : ''}
-      ${a.atualizadoEm ? `<p class="cob-meta">Atualizado ${esc(tempoRelativo(a.atualizadoEm))}</p>` : ''}
       <div class="cob-acoes">
         <button type="button" class="btn btn-mini btn-primario" data-acao="msg" data-id="${esc(a.id)}">💬 Mensagem</button>
         <button type="button" class="btn btn-mini" data-acao="editar" data-id="${esc(a.id)}" aria-label="Editar ${esc(a.nome)}">✏️</button>

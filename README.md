@@ -26,13 +26,15 @@ Para consultar a chave: Firebase → Firestore Database → coleção `config` �
 
 ## Cobranças (só a gestora)
 
-A página [`cobrancas.html`](cobrancas.html) é um funil de cobrança (Entrar em
-contato → Em negociação → Aguardando pagamento → Finalizado, além de Cancelado), com cadastro do aluno (nome,
-WhatsApp, mensalidades em atraso, polo, tipo de curso e observação) e mensagem pronta para cada
-etapa: Graduação/2ª Graduação usam o **Feirão da Negociação**; Pós-Graduação tem mensagens próprias. Para Graduação/2ª Graduação, em "Outras
+A página [`cobrancas.html`](cobrancas.html) é um funil de cobrança com um **menu lateral de etapas**
+(no celular, uma faixa no topo), mostrando uma etapa por vez: Entrar em contato, Bloqueados, Em negociação,
+Aguardando pagamento, Finalizado e, no cancelamento, Aguardando deferimento e Cancelado. O pedido de
+cancelamento guarda a **data de previsão**; a partir dela, o card e o menu mostram um alerta para conferir
+se o pedido foi deferido. O cadastro do aluno tem nome, WhatsApp, mensalidades em atraso, polo,
+tipo de curso e observação, e há mensagem pronta para cada etapa: Graduação/2ª Graduação usam o **Feirão da Negociação**; Pós-Graduação tem mensagens próprias. Para Graduação/2ª Graduação, em "Outras
 situações" há a mensagem **Evasão**, para quem matriculou e não acessou (retornar ao curso ou cancelar sem pagar nada,
 pois os boletos de quem não acessou são estornados). Os cards podem
-ser arrastados entre as etapas (no celular, segure um instante antes de arrastar).
+mudar de etapa pelo botão "Mover", pelo ✏️ ou arrastando até a etapa no menu (no celular, segure um instante antes de arrastar).
 
 Os alunos ficam no Firestore (coleção `cobrancas`), e as regras liberam acesso **somente** ao
 e-mail da gestora. O atalho "💰 Cobranças" aparece no topo do painel só para ela.

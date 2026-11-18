@@ -44,15 +44,23 @@ function ultimoPolo() {
 }
 const VERSAO_FIREBASE = '13.1.0';
 
+// Etapas na ordem do menu lateral (uma aberta por vez).
+// "cancelado" guarda o id antigo da coluna Cancelado: agora é o pedido aguardando deferimento.
 const ETAPAS = [
-  { id: 'contatar', nome: 'Entrar em contato' },
-  { id: 'negociacao', nome: 'Em negociação' },
-  { id: 'aguardando', nome: 'Aguardando pagamento' },
-  { id: 'finalizado', nome: 'Finalizado' },
-  { id: 'cancelado', nome: 'Cancelado' },
+  { id: 'contatar', nome: 'Entrar em contato', icone: '📞' },
+  { id: 'bloqueado', nome: 'Bloqueados', icone: '🔒' },
+  { id: 'negociacao', nome: 'Em negociação', icone: '🤝' },
+  { id: 'aguardando', nome: 'Aguardando pagamento', icone: '⏳' },
+  { id: 'finalizado', nome: 'Finalizado', icone: '✅' },
+  { id: 'cancelado', nome: 'Aguardando deferimento', icone: '📅', grupo: 'Cancelamento' },
+  { id: 'deferido', nome: 'Cancelado', icone: '✖️' },
 ];
 // Etapas que não contam em "Mensalidades em aberto".
-const ETAPAS_ENCERRADAS = ['finalizado', 'cancelado'];
+const ETAPAS_ENCERRADAS = ['finalizado', 'cancelado', 'deferido'];
+// Pedido de cancelamento: a partir da data de previsão, o card pede para conferir o deferimento.
+const ETAPA_PEDIDO = 'cancelado';
+const ETAPAS_COM_PREVISAO = ['cancelado', 'deferido'];
+const CHAVE_ULTIMA_ETAPA = 'cob-ultima-etapa';
 const etapaPorId = Object.fromEntries(ETAPAS.map((e) => [e.id, e]));
 const indiceEtapa = (id) => ETAPAS.findIndex((e) => e.id === id);
 
@@ -93,6 +101,20 @@ Muito obrigada pela confiança. Agora é seguir firme nos estudos, e conte sempr
 Conforme conversamos, o cancelamento da sua matrícula foi encaminhado. ✅
 
 Se em algum momento quiser voltar a estudar, as portas estão abertas. Conte sempre com a gente aqui no *{polo}*! 💛`,
+
+    bloqueado: `Olá, {nome}! Tudo bem? 😊
+
+Aqui é da *{polo}*. Vi que o seu acesso ao curso está *bloqueado*, porque há {qtdTexto}, e quero te ajudar a resolver isso.
+
+Com o nosso *Feirão da Negociação*, você regulariza com condições especiais e o seu acesso volta a ser liberado para seguir os estudos. 📚
+
+Posso te mandar as condições por aqui? 💛`,
+
+    deferido: `Oi, {nome}! Tudo bem? 😊
+
+Passando para avisar que o seu pedido de cancelamento foi *deferido* e o cancelamento da sua matrícula está concluído. ✅
+
+Se em algum momento quiser voltar a estudar, as portas estão abertas. Conte sempre com a gente aqui no *{polo}*! 💛`,
   },
 
   // Pós-Graduação: não participa do Feirão. Motivo do contato: parte financeira;
@@ -125,6 +147,20 @@ Muito obrigada! A parte financeira da sua pós-graduação está regularizada. C
     cancelado: `Oi, {nome}! Tudo bem? 😊
 
 Conforme conversamos, o cancelamento da sua *pós-graduação* foi encaminhado. ✅
+
+Se em algum momento quiser retomar os estudos, as portas estão abertas. Conte sempre com a gente aqui no *{polo}*! 💛`,
+
+    bloqueado: `Olá, {nome}! Tudo bem? 😊
+
+Aqui é da *{polo}*. Vi que o seu acesso à *pós-graduação* está *bloqueado*, porque há {qtdTexto}.
+
+Consigo *atualizar os boletos* e *retirar os juros de atraso* para você regularizar de forma simples, e assim o seu acesso volta a ser liberado. 📚
+
+Tem interesse em resolver isso hoje? 💛`,
+
+    deferido: `Oi, {nome}! Tudo bem? 😊
+
+Passando para avisar que o seu pedido de cancelamento foi *deferido* e o cancelamento da sua *pós-graduação* está concluído. ✅
 
 Se em algum momento quiser retomar os estudos, as portas estão abertas. Conte sempre com a gente aqui no *{polo}*! 💛`,
   },
@@ -178,12 +214,36 @@ function montarMensagem(aluno, etapa) {
 
 // ---------------------------------------------------------------- estado
 
+// Etapa aberta: a do endereço (#bloqueado…), senão a última usada, senão "Entrar em contato".
+function etapaInicial() {
+  const doEndereco = decodeURIComponent(location.hash.slice(1));
+  if (etapaPorId[doEndereco]) return doEndereco;
+  try {
+    const salva = localStorage.getItem(CHAVE_ULTIMA_ETAPA);
+    if (etapaPorId[salva]) return salva;
+  } catch {
+    /* sem armazenamento local: tudo bem */
+  }
+  return ETAPAS[0].id;
+}
+
+// Datas da previsão de cancelamento ficam como "AAAA-MM-DD".
+const hojeISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+const dataBR = (iso) => String(iso || '').split('-').reverse().join('/');
+const ehDataISO = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
+// Pedido de cancelamento cuja previsão já chegou: conferir se foi deferido.
+const paraConferir = (a) => a.etapa === ETAPA_PEDIDO && ehDataISO(a.previsaoCancelamento) && a.previsaoCancelamento <= hojeISO();
+
 const estado = {
   usuario: null,
   alunos: [],
   busca: '',
   filtroPolo: 'todos',
   filtroTipo: 'todos',
+  etapaAtual: etapaInicial(),
   editandoId: null,
   msgAlunoId: null,
   carregando: true,
@@ -250,8 +310,19 @@ function filtrados() {
   });
 }
 
+// Linha da previsão de cancelamento no card (só no pedido aguardando deferimento).
+function linhaPrevisao(a) {
+  if (a.etapa !== ETAPA_PEDIDO) return '';
+  if (!ehDataISO(a.previsaoCancelamento)) {
+    return `<button type="button" class="cob-sem-data" data-acao="editar" data-id="${esc(a.id)}">📅 Informar previsão do cancelamento</button>`;
+  }
+  if (paraConferir(a)) {
+    return `<p class="cob-alerta">⚠️ Conferir deferimento · previsão ${esc(dataBR(a.previsaoCancelamento))}</p>`;
+  }
+  return `<p class="cob-previsao">📅 Previsão do cancelamento: ${esc(dataBR(a.previsaoCancelamento))}</p>`;
+}
+
 function cardAluno(a) {
-  const i = indiceEtapa(a.etapa);
   // Para o card ficar menor, o WhatsApp, a data de atualização e a linha "Planilha: …"
   // (vencimentos e total) não aparecem aqui: ficam salvos e visíveis ao editar o cadastro.
   // O WhatsApp também é usado na tela de mensagem.
@@ -260,8 +331,11 @@ function cardAluno(a) {
     .filter((l) => l.trim() && !l.startsWith('Planilha:'))
     .join('\n');
   const qtd = Number(a.qtd) || 0;
+  const destinos = ETAPAS.filter((e) => e.id !== a.etapa)
+    .map((e) => `<option value="${e.id}">${e.icone} ${esc(e.nome)}</option>`)
+    .join('');
   return `
-    <article class="cob-card" data-id="${esc(a.id)}">
+    <article class="cob-card${paraConferir(a) ? ' cob-card-alerta' : ''}" data-id="${esc(a.id)}">
       <div class="cob-topo">
         <h4>${esc(a.nome)}</h4>
         ${qtd ? `<span class="cob-qtd">${qtd} ${qtd === 1 ? 'mensalidade' : 'mensalidades'}</span>` : ''}
@@ -270,12 +344,15 @@ function cardAluno(a) {
         <span class="cob-polo polo-${esc(poloDe(a).id)}">📍 ${esc(poloDe(a).curto)}</span>
         <span class="cob-tipo tipo-${esc(tipoDe(a).id)}">🎓 ${esc(tipoDe(a).curto)}</span>
       </div>
+      ${linhaPrevisao(a)}
       ${obsVisivel ? `<p class="cob-obs">${esc(obsVisivel)}</p>` : ''}
       <div class="cob-acoes">
         <button type="button" class="btn btn-mini btn-primario" data-acao="msg" data-id="${esc(a.id)}">💬 Mensagem</button>
         <button type="button" class="btn btn-mini" data-acao="editar" data-id="${esc(a.id)}" aria-label="Editar ${esc(a.nome)}">✏️</button>
-        ${i > 0 ? `<button type="button" class="btn btn-mini" data-acao="voltar" data-id="${esc(a.id)}" title="Etapa anterior" aria-label="Voltar etapa">◀</button>` : ''}
-        ${i < ETAPAS.length - 1 ? `<button type="button" class="btn btn-mini" data-acao="avancar" data-id="${esc(a.id)}" title="Próxima etapa" aria-label="Avançar etapa">▶</button>` : ''}
+        <select class="btn btn-mini cob-mover" data-mover="${esc(a.id)}" aria-label="Mover ${esc(a.nome)} para outra etapa">
+          <option value="">➜ Mover</option>
+          ${destinos}
+        </select>
       </div>
     </article>`;
 }
@@ -295,46 +372,146 @@ function renderPolos() {
 function renderResumo() {
   renderPolos();
   const base = doPolo();
-  const conta = (id) => base.filter((a) => a.etapa === id).length;
   const emAberto = base.filter((a) => !ETAPAS_ENCERRADAS.includes(a.etapa)).reduce((s, a) => s + (Number(a.qtd) || 0), 0);
   $('#cobResumo').innerHTML = `
     <div class="cob-resumo-item"><span class="resumo-n">${base.length}</span><span class="resumo-nome">Alunos</span></div>
-    ${ETAPAS.map((e) => `<div class="cob-resumo-item et-${e.id}"><span class="resumo-n">${conta(e.id)}</span><span class="resumo-nome">${esc(e.nome)}</span></div>`).join('')}
-    <div class="cob-resumo-item destaque"><span class="resumo-n">${emAberto}</span><span class="resumo-nome" title="Soma das mensalidades em atraso dos alunos que não estão em Finalizado nem em Cancelado">Mensalidades em aberto</span></div>`;
+    <div class="cob-resumo-item destaque"><span class="resumo-n">${emAberto}</span><span class="resumo-nome" title="Soma das mensalidades em atraso dos alunos que não estão em Finalizado nem no cancelamento">Mensalidades em aberto</span></div>`;
+}
+
+// O menu é montado uma vez (as áreas de soltar o card ficam fixas) e só os números mudam.
+function montarMenu() {
+  $('#cobMenu').innerHTML = `
+    <p class="cob-menu-titulo">Etapas</p>
+    ${ETAPAS.map(
+      (e) => `
+      ${e.grupo ? `<p class="cob-menu-grupo">${esc(e.grupo)}</p>` : ''}
+      <div class="cob-menu-item et-${e.id}" data-etapa="${e.id}">
+        <button type="button" class="cob-menu-btn" data-acao="ver-etapa" data-etapa="${e.id}">
+          <span class="cob-menu-nome"><span aria-hidden="true">${e.icone}</span> ${esc(e.nome)}</span>
+          <span class="cob-menu-alerta" hidden></span>
+          <span class="cob-menu-n">0</span>
+        </button>
+        <div class="cob-menu-alvo" data-etapa="${e.id}" aria-hidden="true"></div>
+      </div>`,
+    ).join('')}`;
+}
+
+function renderMenu(lista) {
+  const base = doPolo();
+  for (const e of ETAPAS) {
+    const item = document.querySelector(`.cob-menu-item[data-etapa="${e.id}"]`);
+    const ativo = e.id === estado.etapaAtual;
+    item.classList.toggle('ativo', ativo);
+    const btn = item.querySelector('.cob-menu-btn');
+    if (ativo) btn.setAttribute('aria-current', 'page');
+    else btn.removeAttribute('aria-current');
+    item.querySelector('.cob-menu-n').textContent = lista.filter((a) => a.etapa === e.id).length;
+    const alerta = item.querySelector('.cob-menu-alerta');
+    const conferir = e.id === ETAPA_PEDIDO ? base.filter(paraConferir).length : 0;
+    alerta.hidden = !conferir;
+    alerta.textContent = conferir ? `⚠️ ${conferir}` : '';
+    alerta.title = conferir ? `${conferir} pedido(s) para conferir o deferimento` : '';
+  }
+}
+
+function renderConferir() {
+  const n = doPolo().filter(paraConferir).length;
+  const el = $('#cobConferir');
+  el.hidden = !n || estado.etapaAtual === ETAPA_PEDIDO;
+  if (el.hidden) return;
+  el.innerHTML = `⚠️ <strong>${n} ${n === 1 ? 'pedido de cancelamento chegou' : 'pedidos de cancelamento chegaram'} à data de previsão.</strong> Confira se ${n === 1 ? 'foi deferido' : 'foram deferidos'}.
+    <button type="button" class="btn btn-mini" data-acao="ver-etapa" data-etapa="${ETAPA_PEDIDO}">Ver pedidos</button>`;
 }
 
 function renderQuadro() {
   renderResumo();
   renderRepetidos();
+  renderConferir();
   const lista = filtrados();
-  for (const e of ETAPAS) {
-    const doEtapa = lista
-      .filter((a) => a.etapa === e.id)
-      .sort((x, y) => (y.atualizadoEm || 0) - (x.atualizadoEm || 0));
-    const col = document.querySelector(`.coluna[data-etapa="${e.id}"]`);
-    col.querySelector('.coluna-n').textContent = doEtapa.length;
-    col.querySelector('.coluna-lista').innerHTML = doEtapa.length
-      ? doEtapa.map(cardAluno).join('')
-      : '<p class="coluna-vazia">Nenhum aluno aqui.</p>';
+  renderMenu(lista);
+  const etapa = etapaPorId[estado.etapaAtual];
+  const doEtapa = lista
+    .filter((a) => a.etapa === etapa.id)
+    // No pedido de cancelamento, os mais urgentes (data mais próxima) primeiro.
+    .sort((x, y) =>
+      etapa.id === ETAPA_PEDIDO
+        ? String(x.previsaoCancelamento || '9999').localeCompare(String(y.previsaoCancelamento || '9999'))
+        : (y.atualizadoEm || 0) - (x.atualizadoEm || 0),
+    );
+  $('#cobTitulo').innerHTML = `<span aria-hidden="true">${etapa.icone}</span> ${esc(etapa.nome)} <span class="coluna-n">${doEtapa.length}</span>`;
+  $('.cob-etapa').className = `cob-etapa et-${etapa.id}`;
+  const listaEl = $('#cobLista');
+  listaEl.dataset.etapa = etapa.id;
+  if (doEtapa.length) {
+    listaEl.innerHTML = doEtapa.map(cardAluno).join('');
+    return;
   }
+  // Busca sem resultado nesta etapa: mostra em quais etapas o aluno está.
+  const outras = estado.busca.trim()
+    ? ETAPAS.map((e) => ({ e, n: lista.filter((a) => a.etapa === e.id).length })).filter((x) => x.n)
+    : [];
+  listaEl.innerHTML = `<p class="coluna-vazia">${
+    outras.length
+      ? `Nenhum aluno com essa busca aqui. Encontrado em: ${outras
+          .map((x) => `<button type="button" class="btn btn-mini" data-acao="ver-etapa" data-etapa="${x.e.id}">${x.e.icone} ${esc(x.e.nome)} (${x.n})</button>`)
+          .join(' ')}`
+      : 'Nenhum aluno nesta etapa.'
+  }</p>`;
+}
+
+function verEtapa(id) {
+  if (!etapaPorId[id]) return;
+  estado.etapaAtual = id;
+  history.replaceState(null, '', `#${id}`);
+  try {
+    localStorage.setItem(CHAVE_ULTIMA_ETAPA, id);
+  } catch {
+    /* sem armazenamento local: tudo bem */
+  }
+  renderQuadro();
+  centralizarEtapaNoMenu();
+}
+
+// No celular, o menu é uma faixa rolável: deixa a etapa aberta à vista (sem rolar a página).
+function centralizarEtapaNoMenu() {
+  const menu = $('#cobMenu');
+  const item = menu.querySelector('.cob-menu-item.ativo');
+  if (!item || menu.scrollWidth <= menu.clientWidth) return;
+  menu.scrollLeft = item.offsetLeft - (menu.clientWidth - item.offsetWidth) / 2;
 }
 
 function prepararArrastar() {
-  for (const lista of document.querySelectorAll('.coluna-lista')) {
-    Sortable.create(lista, {
-      group: 'cobrancas',
-      sort: false, // a ordem dentro da coluna é pela última atualização
-      animation: 150,
-      draggable: '.cob-card',
-      delay: 200, // no celular, segure um instante antes de arrastar (para a tela ainda rolar)
-      delayOnTouchOnly: true,
-      filter: 'button, a',
-      preventOnFilter: false,
-      ghostClass: 'cob-fantasma',
-      chosenClass: 'cob-escolhido',
-      onEnd: (evt) => {
-        if (evt.from === evt.to) return;
-        moverPara(evt.item.dataset.id, evt.to.dataset.etapa);
+  montarMenu();
+  // Arrastar o card até uma etapa do menu muda a etapa do aluno.
+  Sortable.create($('#cobLista'), {
+    group: { name: 'cobrancas', pull: true, put: false },
+    sort: false, // a ordem é pela última atualização (ou pela data, no cancelamento)
+    animation: 150,
+    draggable: '.cob-card',
+    delay: 200, // no celular, segure um instante antes de arrastar (para a tela ainda rolar)
+    delayOnTouchOnly: true,
+    filter: 'button, a, select',
+    preventOnFilter: false,
+    ghostClass: 'cob-fantasma',
+    chosenClass: 'cob-escolhido',
+    onStart: () => document.body.classList.add('cob-arrastando'),
+    onMove: (evt) => {
+      document.querySelectorAll('.cob-menu-item.alvo').forEach((el) => el.classList.remove('alvo'));
+      evt.to.closest?.('.cob-menu-item')?.classList.add('alvo');
+    },
+    onEnd: () => {
+      document.body.classList.remove('cob-arrastando');
+      document.querySelectorAll('.cob-menu-item.alvo').forEach((el) => el.classList.remove('alvo'));
+    },
+  });
+  for (const alvo of document.querySelectorAll('.cob-menu-alvo')) {
+    Sortable.create(alvo, {
+      group: { name: 'cobrancas', pull: false, put: true },
+      sort: false,
+      onAdd: (evt) => {
+        const id = evt.item.dataset.id;
+        evt.item.remove();
+        moverPara(id, alvo.dataset.etapa);
       },
     });
   }
@@ -345,20 +522,37 @@ function prepararArrastar() {
 async function moverPara(id, etapa) {
   const aluno = estado.alunos.find((a) => a.id === id);
   if (!aluno || !etapaPorId[etapa] || aluno.etapa === etapa) return renderQuadro();
+  // Pedido de cancelamento sem data: abre o cadastro para informar a previsão.
+  if (etapa === ETAPA_PEDIDO && !ehDataISO(aluno.previsaoCancelamento)) {
+    renderQuadro();
+    return abrirFormAluno(aluno, { etapa });
+  }
   try {
     await F.updateDoc(F.doc(colecao, id), { etapa, atualizadoEm: F.serverTimestamp() });
     toast(`${primeiroNome(aluno.nome)} → ${etapaPorId[etapa].nome}`);
   } catch (err) {
     console.error(err);
-    toast(`Erro ao mover: ${err.message || err}`, 'erro');
+    toast(
+      err.code === 'permission-denied'
+        ? 'Sem permissão para salvar: publique as regras mais recentes do Firestore.'
+        : `Erro ao mover: ${err.message || err}`,
+      'erro',
+    );
     renderQuadro();
   }
 }
 
-function abrirFormAluno(aluno) {
+function mostrarCampoPrevisao() {
+  const f = $('#formAluno');
+  const mostrar = ETAPAS_COM_PREVISAO.includes(f.etapa.value);
+  $('#campoPrevisao').hidden = !mostrar;
+  f.previsao.required = f.etapa.value === ETAPA_PEDIDO;
+}
+
+function abrirFormAluno(aluno, opcoes = {}) {
   estado.editandoId = aluno?.id || null;
   const f = $('#formAluno');
-  $('#dlgAlunoTitulo').textContent = aluno ? 'Editar aluno' : 'Novo aluno';
+  $('#dlgAlunoTitulo').textContent = opcoes.etapa === ETAPA_PEDIDO ? 'Pedido de cancelamento' : aluno ? 'Editar aluno' : 'Novo aluno';
   f.nome.value = aluno?.nome || '';
   f.telefone.value = aluno?.telefone || '';
   f.qtd.value = aluno?.qtd ?? 1;
@@ -366,11 +560,15 @@ function abrirFormAluno(aluno) {
   f.tipo.innerHTML = TIPOS.map((t) => `<option value="${t.id}" ${t.id === tipoAtual ? 'selected' : ''}>${esc(t.nome)}</option>`).join('');
   const poloAtual = aluno ? poloDe(aluno).id : estado.filtroPolo !== 'todos' ? estado.filtroPolo : ultimoPolo();
   f.polo.innerHTML = POLOS.map((p) => `<option value="${p.id}" ${p.id === poloAtual ? 'selected' : ''}>${esc(p.curto.startsWith('Polo') ? p.curto : `Polo ${p.curto}`)}</option>`).join('');
-  f.etapa.innerHTML = ETAPAS.map((e) => `<option value="${e.id}" ${e.id === (aluno?.etapa || 'contatar') ? 'selected' : ''}>${esc(e.nome)}</option>`).join('');
+  const etapaAtual = opcoes.etapa || aluno?.etapa || estado.etapaAtual;
+  f.etapa.innerHTML = ETAPAS.map((e) => `<option value="${e.id}" ${e.id === etapaAtual ? 'selected' : ''}>${esc(e.nome)}</option>`).join('');
+  f.previsao.value = ehDataISO(aluno?.previsaoCancelamento) ? aluno.previsaoCancelamento : '';
+  mostrarCampoPrevisao();
   f.obs.value = aluno?.obs || '';
   $('#btnExcluir').hidden = !aluno;
   $('#dlgAluno').showModal();
-  f.nome.focus();
+  if (opcoes.etapa === ETAPA_PEDIDO) f.previsao.focus();
+  else f.nome.focus();
 }
 
 async function salvarAluno(e) {
@@ -379,8 +577,11 @@ async function salvarAluno(e) {
   const nome = f.nome.value.trim();
   const telefone = formatarTelefone(f.telefone.value);
   const qtd = Math.round(Number(f.qtd.value));
+  const etapa = etapaPorId[f.etapa.value] ? f.etapa.value : ETAPAS[0].id;
+  const previsao = ehDataISO(f.previsao.value) ? f.previsao.value : '';
   if (!nome) return f.nome.focus();
-  if (digitos(telefone).length < 10) {
+  // WhatsApp é opcional (alunos importados podem vir sem), mas, se informado, precisa do DDD.
+  if (telefone && digitos(telefone).length < 10) {
     toast('Informe o WhatsApp com DDD', 'erro');
     return f.telefone.focus();
   }
@@ -388,8 +589,13 @@ async function salvarAluno(e) {
     toast('Quantidade de mensalidades inválida', 'erro');
     return f.qtd.focus();
   }
+  if (etapa === ETAPA_PEDIDO && !previsao) {
+    toast('Informe a data de previsão do cancelamento', 'erro');
+    return f.previsao.focus();
+  }
   const id = estado.editandoId;
-  const repetido = estado.alunos.find((a) => a.id !== id && numeroWhats(telefone) && numeroWhats(a.telefone) === numeroWhats(telefone));
+  const atual = estado.alunos.find((a) => a.id === id);
+  const repetido = telefone && estado.alunos.find((a) => a.id !== id && numeroWhats(telefone) && numeroWhats(a.telefone) === numeroWhats(telefone));
   if (repetido && !confirm(`Esse WhatsApp já está cadastrado para ${repetido.nome}. Salvar mesmo assim?`)) return;
   const polo = poloPorId[f.polo.value] ? f.polo.value : POLOS[0].id;
   try {
@@ -398,15 +604,22 @@ async function salvarAluno(e) {
     /* sem armazenamento local: tudo bem */
   }
   const tipo = tipoPorId[f.tipo.value] ? f.tipo.value : TIPOS[0].id;
-  const dados = { nome, telefone, qtd, polo, tipo, etapa: f.etapa.value, obs: f.obs.value.trim(), atualizadoEm: F.serverTimestamp() };
+  const dados = { nome, telefone, qtd, polo, tipo, etapa, obs: f.obs.value.trim(), atualizadoEm: F.serverTimestamp() };
+  // A previsão só é gravada no cancelamento (ou quando o aluno já tinha uma).
+  if (ETAPAS_COM_PREVISAO.includes(etapa) || atual?.previsaoCancelamento) dados.previsaoCancelamento = previsao;
   $('#dlgAluno').close();
   try {
     if (id) await F.updateDoc(F.doc(colecao, id), dados);
     else await F.addDoc(colecao, { ...dados, criadoEm: F.serverTimestamp() });
-    toast(id ? 'Aluno atualizado' : 'Aluno cadastrado');
+    toast(id ? (atual && atual.etapa !== etapa ? `${primeiroNome(nome)} → ${etapaPorId[etapa].nome}` : 'Aluno atualizado') : 'Aluno cadastrado');
   } catch (err) {
     console.error(err);
-    toast(`Erro ao salvar: ${err.message || err}`, 'erro');
+    toast(
+      err.code === 'permission-denied'
+        ? 'Sem permissão para salvar: publique as regras mais recentes do Firestore.'
+        : `Erro ao salvar: ${err.message || err}`,
+      'erro',
+    );
   }
 }
 
@@ -580,6 +793,10 @@ function interpretarPlanilha(texto) {
 
 function abrirImportar() {
   previaImportacao = [];
+  // Alunos novos entram na etapa aberta se ela for de entrada (Entrar em contato ou Bloqueados).
+  const entrada = ['contatar', 'bloqueado'].includes(estado.etapaAtual) ? estado.etapaAtual : 'contatar';
+  // (O pedido de cancelamento fica de fora: ele precisa da data de previsão de cada aluno.)
+  $('#impEtapa').innerHTML = ETAPAS.filter((e) => e.id !== ETAPA_PEDIDO).map((e) => `<option value="${e.id}" ${e.id === entrada ? 'selected' : ''}>${e.icone} ${esc(e.nome)}</option>`).join('');
   $('#impTexto').value = '';
   $('#impPrevia').innerHTML = '';
   $('#impConfirmar').disabled = true;
@@ -639,7 +856,7 @@ function lerPlanilha() {
   $('#impPrevia').innerHTML = `
     <p class="pequeno"><strong>${alunos.length} alunos</strong> em ${linhasPlanilha} mensalidades${ignoradas ? ` (${ignoradas} linha(s) ignorada(s), como o cabeçalho)` : ''}:
       ${n('novo')} novo(s), ${n('unir')} para unir com cards existentes, ${n('igual')} já atualizado(s).
-      Novos entram em "Entrar em contato", com o WhatsApp da planilha; os existentes mantêm etapa, WhatsApp e anotações (quem estiver sem WhatsApp recebe o da planilha).</p>
+      Novos entram na etapa escolhida acima, com o WhatsApp da planilha; os existentes mantêm etapa, WhatsApp e anotações (quem estiver sem WhatsApp recebe o da planilha).</p>
     <div class="imp-tabela-caixa">
       <table class="imp-tabela">
         <thead><tr><th></th><th>Aluno</th><th>WhatsApp</th><th>Situação</th><th>Mens.</th><th>Total</th><th>Vencimentos</th><th>Polo</th><th>Curso</th></tr></thead>
@@ -668,6 +885,9 @@ document.addEventListener('change', (e) => {
 async function confirmarImportacao() {
   const lista = previaImportacao.filter((a) => a.incluir);
   if (!lista.length) return;
+  // Pedido de cancelamento precisa de data: alunos novos vão para "Entrar em contato" nesse caso.
+  const escolhida = etapaPorId[$('#impEtapa').value] ? $('#impEtapa').value : 'contatar';
+  const etapaEntrada = escolhida === ETAPA_PEDIDO ? 'contatar' : escolhida;
   const botao = $('#impConfirmar');
   botao.disabled = true;
   let novos = 0;
@@ -682,7 +902,7 @@ async function confirmarImportacao() {
           qtd: a.final.qtd,
           polo: a.polo,
           tipo: a.tipo,
-          etapa: 'contatar',
+          etapa: etapaEntrada,
           vencimentos: a.final.vencimentos,
           obs: obsComResumo('', a.final),
           criadoEm: F.serverTimestamp(),
@@ -836,12 +1056,8 @@ document.addEventListener('click', async (e) => {
       return excluirAluno();
     case 'msg':
       return aluno && abrirMensagem(aluno);
-    case 'avancar':
-    case 'voltar': {
-      if (!aluno) return;
-      const destino = ETAPAS[indiceEtapa(aluno.etapa) + (el.dataset.acao === 'avancar' ? 1 : -1)];
-      return destino && moverPara(aluno.id, destino.id);
-    }
+    case 'ver-etapa':
+      return verEtapa(el.dataset.etapa);
     case 'msg-copiar':
       return copiar($('#msgTexto').value, 'Mensagem copiada!');
     case 'fechar-dialogo':
@@ -850,6 +1066,21 @@ document.addEventListener('click', async (e) => {
 });
 
 $('#formAluno').addEventListener('submit', salvarAluno);
+$('#formAluno').etapa.addEventListener('change', mostrarCampoPrevisao);
+// Fechou o cadastro sem salvar (ex.: arrastou para o cancelamento e desistiu): o card volta ao lugar.
+$('#dlgAluno').addEventListener('close', () => renderQuadro());
+// "➜ Mover" no card.
+document.addEventListener('change', (e) => {
+  const sel = e.target.closest('select[data-mover]');
+  if (!sel || !sel.value) return;
+  const destino = sel.value;
+  sel.value = '';
+  moverPara(sel.dataset.mover, destino);
+});
+window.addEventListener('hashchange', () => {
+  const id = decodeURIComponent(location.hash.slice(1));
+  if (etapaPorId[id] && id !== estado.etapaAtual) verEtapa(id);
+});
 $('#cobBusca').addEventListener('input', (e) => {
   estado.busca = e.target.value;
   renderQuadro();
@@ -874,6 +1105,7 @@ function abrirQuadro() {
   $('#telaAcesso').hidden = true;
   $('#app').hidden = false;
   renderQuadro();
+  centralizarEtapaNoMenu();
   pararDeOuvir?.();
   pararDeOuvir = F.onSnapshot(
     colecao,

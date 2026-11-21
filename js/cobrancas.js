@@ -542,11 +542,16 @@ async function moverPara(id, etapa) {
   }
 }
 
-function mostrarCampoPrevisao() {
+// Mínimo de mensalidades: 0 em Finalizado e no cancelamento; 1 nas demais etapas.
+const minimoMensalidades = (etapa) => (ETAPAS_ENCERRADAS.includes(etapa) ? 0 : 1);
+
+// Ajusta o cadastro à etapa escolhida: data de previsão (cancelamento) e mínimo de mensalidades.
+function ajustarFormPorEtapa() {
   const f = $('#formAluno');
   const mostrar = ETAPAS_COM_PREVISAO.includes(f.etapa.value);
   $('#campoPrevisao').hidden = !mostrar;
   f.previsao.required = f.etapa.value === ETAPA_PEDIDO;
+  f.qtd.min = String(minimoMensalidades(f.etapa.value));
 }
 
 function abrirFormAluno(aluno, opcoes = {}) {
@@ -563,7 +568,7 @@ function abrirFormAluno(aluno, opcoes = {}) {
   const etapaAtual = opcoes.etapa || aluno?.etapa || estado.etapaAtual;
   f.etapa.innerHTML = ETAPAS.map((e) => `<option value="${e.id}" ${e.id === etapaAtual ? 'selected' : ''}>${esc(e.nome)}</option>`).join('');
   f.previsao.value = ehDataISO(aluno?.previsaoCancelamento) ? aluno.previsaoCancelamento : '';
-  mostrarCampoPrevisao();
+  ajustarFormPorEtapa();
   f.obs.value = aluno?.obs || '';
   $('#btnExcluir').hidden = !aluno;
   $('#dlgAluno').showModal();
@@ -585,8 +590,8 @@ async function salvarAluno(e) {
     toast('Informe o WhatsApp com DDD', 'erro');
     return f.telefone.focus();
   }
-  if (!Number.isInteger(qtd) || qtd < 1 || qtd > 120) {
-    toast('Quantidade de mensalidades inválida', 'erro');
+  if (!Number.isInteger(qtd) || qtd < minimoMensalidades(etapa) || qtd > 120) {
+    toast(qtd === 0 ? 'Mensalidades 0 só em Finalizado e no cancelamento' : 'Quantidade de mensalidades inválida', 'erro');
     return f.qtd.focus();
   }
   if (etapa === ETAPA_PEDIDO && !previsao) {
@@ -1066,7 +1071,7 @@ document.addEventListener('click', async (e) => {
 });
 
 $('#formAluno').addEventListener('submit', salvarAluno);
-$('#formAluno').etapa.addEventListener('change', mostrarCampoPrevisao);
+$('#formAluno').etapa.addEventListener('change', ajustarFormPorEtapa);
 // Fechou o cadastro sem salvar (ex.: arrastou para o cancelamento e desistiu): o card volta ao lugar.
 $('#dlgAluno').addEventListener('close', () => renderQuadro());
 // "➜ Mover" no card.

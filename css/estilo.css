@@ -630,3 +630,21 @@ body.cob-arrastando .cob-menu-item:not(.ativo) .cob-menu-btn { outline: 2px dash
 
 .usuario-editar { font: inherit; background: transparent; border: 1px dashed #44454f; color: #e7e8ec; border-radius: 8px; padding: 5px 10px; cursor: pointer; }
 .usuario-editar:hover { border-color: var(--amarelo); color: #fff; }
+
+/* ---------- depoimentos do site ---------- */
+
+.dep-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.dep-lista .vazio { grid-column: 1 / -1; }
+.dep-card { background: var(--card); border-radius: var(--raio); box-shadow: var(--sombra); padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; border-left: 4px solid var(--amarelo); }
+.dep-card.dep-aprovado { border-left-color: #16a34a; }
+.dep-topo { display: flex; align-items: center; gap: 12px; }
+.dep-foto { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 2px solid var(--borda); background: #e5e7eb; }
+.dep-iniciais { display: grid; place-items: center; font-weight: 800; color: var(--suave); }
+.dep-quem { flex: 1; min-width: 0; }
+.dep-quem h3 { font-size: 1rem; }
+.dep-quem p { font-size: 0.85rem; color: var(--suave); }
+.dep-status { font-size: 0.75rem; font-weight: 700; white-space: nowrap; color: var(--suave); }
+.dep-texto { font-size: 0.92rem; white-space: pre-line; }
+.form .dep-check { flex-direction: row; align-items: center; gap: 8px; font-weight: 500; }
+.form .dep-check input { width: auto; }
+.contador-alerta { background: var(--amarelo); color: var(--preto); font-weight: 800; }

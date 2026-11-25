@@ -76,5 +76,55 @@ service cloud.firestore {
       allow read, delete: if gestora();
       allow create, update: if gestora() && cobrancaValida();
     }
+
+    // Depoimentos do site (unifatecie-ead, página inicial).
+    // Qualquer visitante pode ENVIAR um depoimento: ele entra como "pendente".
+    // O site só consegue LER os aprovados. Aprovar, editar, tirar do site e
+    // excluir: só a equipe autorizada, pela página Depoimentos do painel.
+    function textoOk(v, min, max) {
+      return v is string && v.size() >= min && v.size() <= max;
+    }
+
+    // Foto opcional: JPEG em base64, já reduzida no celular do aluno.
+    function fotoOk(d) {
+      return !('foto' in d)
+        || (d.foto is string && d.foto.size() <= 300000
+          && d.foto.matches('data:image/jpeg;base64,[A-Za-z0-9+/=]+'));
+    }
+
+    function depoimentoNovo() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['nome', 'curso', 'polo', 'texto', 'foto', 'autorizacao', 'status', 'criadoEm'])
+        && d.keys().hasAll(['nome', 'curso', 'polo', 'texto', 'autorizacao', 'status', 'criadoEm'])
+        && d.status == 'pendente'
+        && d.autorizacao == true
+        && d.criadoEm == request.time
+        && textoOk(d.nome, 2, 80)
+        && textoOk(d.curso, 2, 120)
+        && d.polo in ['ipupiara', 'barra-do-mendes']
+        && textoOk(d.texto, 20, 1500)
+        && fotoOk(d);
+    }
+
+    function depoimentoEditado() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['nome', 'curso', 'polo', 'texto', 'foto', 'autorizacao', 'status', 'criadoEm', 'atualizadoEm', 'atualizadoPor'])
+        && d.status in ['pendente', 'aprovado']
+        && d.criadoEm == resource.data.criadoEm
+        && d.autorizacao == resource.data.autorizacao
+        && textoOk(d.nome, 1, 80)
+        && textoOk(d.curso, 1, 120)
+        && d.polo in ['ipupiara', 'barra-do-mendes']
+        && textoOk(d.texto, 1, 1500)
+        && fotoOk(d)
+        && (!('atualizadoPor' in d) || textoOk(d.atualizadoPor, 0, 200));
+    }
+
+    match /depoimentos/{depoimentoId} {
+      allow read: if resource.data.status == 'aprovado' || autorizado();
+      allow create: if depoimentoNovo();
+      allow update: if autorizado() && depoimentoEditado();
+      allow delete: if autorizado();
+    }
   }
 }

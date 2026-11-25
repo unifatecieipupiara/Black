@@ -287,6 +287,7 @@ function renderUsuario() {
   const u = estado.usuario;
   $('#usuario').innerHTML = u
     ? `<a class="btn btn-topo" href="./">← Painel</a>
+       <a class="btn btn-topo" href="depoimentos.html">💬 Depoimentos</a>
        <span class="usuario-nome" title="${esc(u.email)}">${esc(primeiroNome(u.nome))}</span>
        <button type="button" class="btn btn-topo" data-acao="sair">Sair</button>`
     : '';

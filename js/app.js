@@ -115,6 +115,7 @@ const estado = {
   buscaLead: '',
   editandoId: null,
   registrandoMatricula: false,
+  depoimentosPendentes: 0,
 };
 
 
@@ -198,6 +199,12 @@ function renderAvisos() {
       `<div class="aviso aviso-alerta">⚠️ <strong>Ainda falta cadastrar:</strong><ul>${pendencias.map((p) => `<li>${esc(p)}</li>`).join('')}</ul></div>`,
     );
   }
+  if (estado.depoimentosPendentes > 0) {
+    const n = estado.depoimentosPendentes;
+    avisos.push(
+      `<div class="aviso">💬 <strong>${n} ${n > 1 ? 'depoimentos novos esperando' : 'depoimento novo esperando'} aprovação</strong> para aparecer no site. <a href="depoimentos.html">Ver depoimentos</a></div>`,
+    );
+  }
   if (estado.store?.modo === 'demo') {
     avisos.push(
       '<div class="aviso">ℹ️ <strong>Modo demonstração:</strong> os leads ficam salvos só neste navegador. Depois de configurar o Firebase, eles passam a ser compartilhados entre vocês.</div>',
@@ -216,7 +223,9 @@ function renderUsuario() {
   } else if (usuario) {
     // Atalho para a página de cobranças: só para a gestora (as regras do Firestore também garantem isso).
     const gestora = String(usuario.email || '').toLowerCase() === 'agaleriacampos@gmail.com';
-    el.innerHTML = `${gestora ? '<a class="btn btn-topo" href="cobrancas.html">💰 Cobranças</a>' : ''}
+    const n = estado.depoimentosPendentes;
+    const depoimentos = `<a class="btn btn-topo" href="depoimentos.html" title="Depoimentos enviados pelo site">💬 Depoimentos${n > 0 ? ` <span class="contador contador-alerta">${n}</span>` : ''}</a>`;
+    el.innerHTML = `${depoimentos}${gestora ? '<a class="btn btn-topo" href="cobrancas.html">💰 Cobranças</a>' : ''}
       <button type="button" class="usuario-nome usuario-editar" data-acao="editar-nome" title="${esc(usuario.email)} · toque para editar seu nome">${esc(usuario.nome)} ✏️</button>
       <button type="button" class="btn btn-topo" data-acao="sair">Sair</button>`;
   } else {
@@ -1094,6 +1103,11 @@ function abrirApp() {
   mudarAba(location.hash.slice(1) || 'cursos');
 
   prepararArrastarLeads();
+  estado.store.ouvirDepoimentosPendentes?.((n) => {
+    estado.depoimentosPendentes = n;
+    renderUsuario();
+    renderAvisos();
+  });
   estado.store.ouvirPerfis?.((perfis) => {
     estado.perfis = perfis;
     estado.perfisCarregados = true;

@@ -136,6 +136,16 @@ async function criarFirebase(config) {
       return F.updateDoc(F.doc(colecao, id), campos);
     },
 
+    // Depoimentos do site esperando aprovação (só a quantidade, para o aviso do topo).
+    ouvirDepoimentosPendentes(aoReceber) {
+      const consulta = F.query(F.collection(db, 'depoimentos'), F.where('status', '==', 'pendente'));
+      return F.onSnapshot(
+        consulta,
+        (snap) => aoReceber(snap.size),
+        (err) => console.warn('Depoimentos:', err.code || err.message),
+      );
+    },
+
     // Chave que abre os dados da campanha (config/acesso → campo "chave").
     async lerChave() {
       const snap = await F.getDoc(F.doc(db, 'config', 'acesso'));
@@ -216,6 +226,10 @@ function criarDemo() {
     },
     async corrigirAutor(id, campos) {
       gravar(lerLeads().map((l) => (l.id === id ? { ...l, ...campos } : l)));
+    },
+    ouvirDepoimentosPendentes(aoReceber) {
+      setTimeout(() => aoReceber(0));
+      return () => {};
     },
     async lerChave() {
       return localStorage.getItem('bf-chave-demo');

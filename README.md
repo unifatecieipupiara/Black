@@ -9,6 +9,8 @@ Painel simples para a campanha de Black Friday (novembro):
   *Matriculado* / *Perdido*): WhatsApp, nome (opcional), observação e quantidade de matrículas.
   Ao levar um lead para *Matriculado*, o painel registra quem matriculou e quando.
 - **Placar de matrículas do mês** por usuário (nome editável tocando no próprio nome no topo).
+- **Depoimentos do site**: aprovação dos depoimentos que os alunos enviam pela página inicial do site
+  dos polos (ver abaixo).
 - Exportação dos leads para planilha (CSV, abre no Excel / Google Planilhas).
 
 Não precisa instalar nada: é um site estático (HTML, CSS e JavaScript).
@@ -39,6 +41,21 @@ mudar de etapa pelo botão "Mover", pelo ✏️ ou arrastando até a etapa no me
 Os alunos ficam no Firestore (coleção `cobrancas`), e as regras liberam acesso **somente** ao
 e-mail da gestora. O atalho "💰 Cobranças" aparece no topo do painel só para ela.
 
+## Depoimentos do site
+
+Na página inicial do site dos polos ([unifatecie-ead](https://unifatecieipupiara.github.io/unifatecie-ead/#depoimentos)),
+o botão **Deixe seu depoimento** abre um formulário (nome, curso, polo, depoimento, foto opcional e
+autorização de publicação). Cada envio vai para o Firestore (coleção `depoimentos`) como **pendente**;
+a foto é cortada e reduzida no celular do aluno (400 × 400, JPEG) e fica guardada no próprio documento.
+
+Na página [`depoimentos.html`](depoimentos.html) (atalho "💬 Depoimentos" no topo do painel, com a
+quantidade de pendentes) a equipe **aprova** (o depoimento entra no começo do carrossel do site),
+**edita** (corrige texto, nome, curso, polo ou remove a foto), **tira do site** ou **exclui**.
+Os 11 depoimentos antigos continuam fixos no HTML do site.
+
+As regras em [`firestore.rules`](firestore.rules) garantem que qualquer visitante só consegue **enviar**
+(sempre como pendente) e **ler os aprovados**; aprovar, editar e excluir é só para os e-mails autorizados.
+
 ## Arquivos
 
 | Arquivo | Para que serve |
@@ -46,8 +63,9 @@ e-mail da gestora. O atalho "💰 Cobranças" aparece no topo do painel só para
 | `js/dados.enc.json` | **Cursos, valores, links, vouchers e mensagens**, criptografados. |
 | `ferramentas/dados.mjs` | Abre (`abrir`) e criptografa de novo (`fechar`) os dados com a chave. |
 | `js/config.js` | Configuração do Firebase (onde os leads ficam guardados). |
-| `firestore.rules` | Regras de segurança: quais e-mails podem acessar o painel, os leads e a chave. |
+| `firestore.rules` | Regras de segurança: quais e-mails podem acessar o painel, os leads, as cobranças, os depoimentos e a chave. |
 | `index.html`, `css/`, `js/app.js`, `js/armazenamento.js`, `js/cofre.js` | O sistema em si. |
+| `depoimentos.html`, `js/depoimentos.js` | Aprovação dos depoimentos enviados pelo site. |
 
 Enquanto o Firebase não estiver configurado, o sistema funciona em **modo demonstração**:
 os leads ficam salvos só no navegador de quem está usando.

@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Depoimentos · UniFatecie</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%230d0d10'/><text x='32' y='44' font-size='30' font-family='Arial' font-weight='700' text-anchor='middle' fill='%23ffc21a'>%E2%80%9C</text></svg>">
+  <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+  <header class="topo">
+    <div class="topo-int">
+      <div class="marca">
+        <span class="selo">DEPOI<br>MENTOS</span>
+        <div>
+          <h1>Depoimentos · UniFatecie</h1>
+          <p>Enviados pelos alunos no site dos polos</p>
+        </div>
+      </div>
+      <div id="usuario" class="usuario"></div>
+    </div>
+  </header>
+
+  <!-- Tela de acesso: só a equipe autorizada entra -->
+  <main id="telaAcesso" class="tela-acesso">
+    <div class="acesso-card" id="acessoConteudo" aria-live="polite">
+      <p>Carregando…</p>
+    </div>
+  </main>
+
+  <div id="app" hidden>
+    <main class="conteudo">
+      <div class="barra">
+        <div id="depFiltros" class="chips" role="group" aria-label="Filtrar depoimentos"></div>
+        <div class="barra-acoes">
+          <a class="btn" href="https://unifatecieipupiara.github.io/unifatecie-ead/#depoimentos" target="_blank" rel="noopener">Ver no site ↗</a>
+        </div>
+      </div>
+      <p class="cob-dica">Os depoimentos enviados pelo site chegam aqui como <strong>pendentes</strong>. Só aparecem no carrossel da página inicial depois de <strong>aprovados</strong>. Os 11 depoimentos antigos continuam fixos no site.</p>
+      <div id="depLista" class="dep-lista" aria-live="polite"></div>
+    </main>
+  </div>
+
+  <!-- Edição do depoimento -->
+  <dialog id="dlgDep" aria-labelledby="dlgDepTitulo">
+    <form id="formDep" method="dialog" class="form">
+      <h3 id="dlgDepTitulo">Editar depoimento</h3>
+      <div class="form-linha">
+        <label>Nome *
+          <input name="nome" required maxlength="80" autocomplete="off">
+        </label>
+        <label>Polo *
+          <select name="polo" required></select>
+        </label>
+      </div>
+      <label>Curso *
+        <input name="curso" required maxlength="120" autocomplete="off">
+      </label>
+      <label>Depoimento *
+        <textarea name="texto" rows="7" required maxlength="1500"></textarea>
+      </label>
+      <label class="dep-check" id="campoTirarFoto" hidden>
+        <input type="checkbox" name="tirarFoto"> Remover a foto (o depoimento fica com as iniciais do nome)
+      </label>
+      <div class="form-botoes">
+        <button type="button" class="btn" data-acao="fechar-dialogo">Cancelar</button>
+        <button type="submit" class="btn btn-primario">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="js/depoimentos.js"></script>
+</body>
+</html>
